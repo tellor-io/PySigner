@@ -23,7 +23,9 @@ def getAPIValues():
 	return [btc,eth]
 
 def signValue(data):
-	return sign_cli(privateKey,data)
+	intKey = int(privateKey,16)
+	intData = int(data,16)
+	return sign_cli(intKey,intData)
 
 def formatData(data):
 	n = Web3.toHex(str.encode(data["oracle"]))
@@ -42,6 +44,7 @@ def TellorSignerMain():
 			apiData = assets[i]
 			data = formatData(apiData)
 			signedData = signValue(data)
+			print(signedData)
 			# submitSignature(signedData)
 		break
 		time.sleep(60);
