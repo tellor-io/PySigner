@@ -1,7 +1,7 @@
 
 from stark_cli import sign_cli,hash_price
-import datetime 
-
+import time 
+from web3 import Web3
 
 apiString =  'json(https://api.gdax.com/products/BTC-USD/ticker).price'
 privateKey = "0x000000001"
@@ -9,16 +9,16 @@ privateKey = "0x000000001"
 def getAPIValues():
 	apiVals = []
 	btc = {
-	  "oracle": "Tellor",
+	  "oracle": "TRB",
 	  "price": 1,
 	  "asset":"BTC/USD",
-	  "timestamp":datetime.datetime.now() 
+	  "timestamp":int(time.time())
 	}
 	eth = {
-	  "oracle": "Tellor",
+	  "oracle": "TRB",
 	  "price": 2,
 	  "asset":"ETH/USD",
-	  "timestamp":datetime.datetime.now() 
+	  "timestamp": int(time.time())
 	}
 	return [btc,eth]
 
@@ -26,8 +26,11 @@ def signValue(data):
 	return sign_cli(privateKey,data)
 
 def formatData(data):
-	print(data["oracle"])
-	return hash_price(data["oracle"],data["price"],data["asset"],data["timestamp"])
+	n = Web3.toHex(str.encode(data["oracle"]))
+	name =int(n,16)
+	n = Web3.toHex(str.encode(data["asset"]))
+	asset =int(n,16)
+	return hash_price(name,asset,data["price"],data["timestamp"])
 
 def submitSignature():
 	pass
@@ -38,8 +41,7 @@ def TellorSignerMain():
 		for i in range(len(assets)):
 			apiData = assets[i]
 			data = formatData(apiData)
-			print(data)
-			# signedData = signValue(data)
+			signedData = signValue(data)
 			# submitSignature(signedData)
 		break
 		time.sleep(60);
