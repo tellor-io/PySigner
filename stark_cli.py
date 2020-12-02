@@ -17,7 +17,7 @@
 import sys
 from argparse import ArgumentParser, RawTextHelpFormatter
 
-from signature import FIELD_PRIME, get_price_msg, private_to_stark_key, sign
+from signature import FIELD_PRIME, get_price_msg, private_to_stark_key, sign,pedersen_hash
 
 
 class HexedBoundedParam():
