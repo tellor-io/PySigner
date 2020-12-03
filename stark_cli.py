@@ -92,7 +92,7 @@ def main():
             help='The asset time', type=HexedBoundedParam(2**32))
 
         parser.parse_args(unknown, namespace=args)
-
+        print(args.oracle, args.asset, args.price, args.time)
         return hash_price(args.oracle, args.asset, args.price, args.time)
 
     def sign_main(args, unknown):

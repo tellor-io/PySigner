@@ -18,13 +18,13 @@ def getAPIValues():
 	apiVals = []
 	btc = {
 	  "oracle": "TRB",
-	  "price": medianize(btcAPIs),
+	  "price":  int(medianize(btcAPIs)*(10**18)),
 	  "asset":"BTC/USD",
 	  "timestamp":int(time.time())
 	}
 	eth = {
 	  "oracle": "TRB",
-	  "price": medianize(ethAPIs),
+	  "price": int(medianize(ethAPIs)*(10**18)),
 	  "asset":"ETH/USD",
 	  "timestamp": int(time.time())
 	}
@@ -74,10 +74,12 @@ def signValue(data):
 	return sign_cli(intKey,intData)
 
 def formatData(data):
-	n = Web3.toHex(str.encode(data["oracle"]))
+	n = data["oracle"].encode('utf-8').hex()
 	name =int(n,16)
 	n = Web3.toHex(str.encode(data["asset"]))
-	asset =int(n,16)
+	c = bin(int(data["asset"].encode('utf-8').hex(),16))[:128]
+	asset = hex(int(c, 2)).ljust(32,"0")
+	asset =int(asset,16)
 	return hash_price(name,asset,data["price"],data["timestamp"])
 
 def submitSignature(_signedData):
@@ -104,7 +106,7 @@ def EthKeyToStarkKey(eth_key):
 	stark_private_key = hex(int(c, 2))
 	return public_cli(int(stark_private_key,16))
 
-#TellorSignerMain()
+TellorSignerMain()
 #print(medianize(btcAPIs))
 #print(medianize(ethAPIs))
 #print(public_cli(int(privateKey,16)))
@@ -118,15 +120,18 @@ def testSign():
 	price = 11512.34
 	asset = "BTCUSD"
 	oracle_name ="Maker"
+
+
 	time_res = time.strptime(time_string, "%d %B, %Y")
 	timestamp = hex(int(time.mktime(time_res))-60*60*5)
 	price = hex(int(price*(10**18)))
 	c = bin(int(asset.encode('utf-8').hex(),16))[:128]
 	asset_name = hex(int(c, 2)).ljust(32,"0")
 	oracle_name = oracle_name.encode('utf-8').hex()
+
+
 	first_number = (asset_name + oracle_name)[2:]
 	second_number = (price + timestamp[2:])[2:]
-	print(first_number,second_number)
 	data_hash = pedersen_hash(int(first_number,16),int(second_number,16))
 	print(data_hash)
 	#should be : 3e4113feb6c403cb0c954e5c09d239bf88fedb075220270f44173ac3cd41858
@@ -134,6 +139,18 @@ def testSign():
 	intKey = int(myKey,16)
 	signature = sign_cli(intKey,data_hash)
 	print(signature)
+
+
+	# data = {
+	#   "oracle": oracle_name,
+	#   "price": price,
+	#   "asset": asset_name[2:],
+	#   "timestamp": timestamp
+	# }
+	# print(data)
+	# signature = hash_price(int(oracle_name,16),int(asset_name[2:]), int(price,16),int(timestamp,16))
+	# print(signature)
+	#print(hash_price("4d616b6572",42544355534400000000000000000000,"27015cfcb0230820000","5e0be100"))
  #  	signature = StarkSign(key=stark_private_key, data=data_hash) =
 	#   0x6a7a118a6fa508c4f0eb77ea0efbc8d48a64d4a570d93f5c61cd886877cb920
 	#   0x6de9006a7bbf610d583d514951c98d15b1a0f6c78846986491d2c8ca049fd55
