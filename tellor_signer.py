@@ -21,6 +21,7 @@ ethAPIs = [		"json(https://api.pro.coinbase.com/products/ETH-USD/ticker).price",
 
 btc = {
   "price":0,
+  "strPrice":"",
   "asset":"BTC/USD",
   "timestamp": 0,
   "lastPushedPrice":0,
@@ -29,6 +30,7 @@ btc = {
 eth = {
   "price": 0,
   "asset":"ETH/USD",
+  "strPrice":"",
   "timestamp": 0,
   "lastPushedPrice":0,
   "timeLastPushed":0
@@ -46,9 +48,13 @@ submitData = {
 
 def getAPIValues():
 	btc["timestamp"] = int(time.time())
-	btc["price"] = int(medianize(btcAPIs)*(10**18))
+	price = medianize(btcAPIs)
+	btc["strPrice"] = str(price)
+	btc["price"] = int(price*(10**18))
 	eth["timestamp"] = int(time.time())
-	eth["price"] = int(medianize(ethAPIs)*(10**18))
+	price = medianize(ethAPIs)
+	eth["strPrice"] =str(price)
+	eth["price"] = int(price*(10**18))
 	return [btc,eth]
 
 def medianize(_apis):
@@ -85,7 +91,7 @@ def fetchAPI(_api):
 			price = response.json()
 	else:
 		price = response
-	return int(float(price))
+	return float(price)
 
 
 def signValue(data):
@@ -107,7 +113,8 @@ def formatData(data):
 
 def submitSignature(_signedData):
 	print(_signedData)
-	x = requests.post(submissionURL,data=_signedData)
+	headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
+	x = requests.post(submissionURL,data=_signedData,headers=headers)
 	print(x)
 
 def EthKeyToStarkKey(eth_key):
@@ -129,9 +136,8 @@ def TellorSignerMain():
 			signValue(data)
 			if assets[i]["timestamp"]- assets[i]["timeLastPushed"] > 300 or abs(assets[i]["price"] - assets[i]["lastPushedPrice"]) > .02:
 				submitData["assetName"] = assets[i]["asset"]
-				submitData["price"] = assets[i]["price"]
+				submitData["price"] = assets[i]["strPrice"]
 				submitData["timestamp"] = assets[i]["timestamp"]
-				print("submitting data :", submitData)
 				submitSignature(submitData)
 				assets[i]["lastPushedPrice"] = assets[i]["price"]
 				assets[i]["timeLastPushed"] = assets[i]["timestamp"]
@@ -149,6 +155,3 @@ TellorSignerMain()
   # bittrex
   # gemini
   # kraken
-
-#curl -X POST --data '{"starkKey": "0x13ebb76f3d0c31448a84bcfca6edc246637f3f6d8aa5ab2cb7e030d5b7c9034", "timestamp": 1607454394, "price": 18839000000000000000000, "assetName":"BTC-USD", "oracleName":"Tellor", "signatureR": "0x26eba72c3328edc5f4897979bff80a1d8325c6acf1823c6fa5be21804d9ba67", "signatureS": "0x3e43b9d54e626f8d17bb24d3b89b1b00e43b192ec844a1561d74f78bf2b35e0"}' https://api.stage.dydx.exchange/v3/price
-
