@@ -7,27 +7,37 @@ from web3.auto import w3
 from bitstring import BitArray
 from signature import pedersen_hash
 
-privateKey = "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-submissionURL = "https://api.stage.dydx.exchange/v3/price"
+
+
+privateKey =
+submissionURL = "http://api.stage.dydx.exchange/v3/price"
 btcAPIs = ["json(https://api.pro.coinbase.com/products/BTC-USD/ticker).price",
 		"json(https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd).bitcoin.usd"]
 ethAPIs = [		"json(https://api.pro.coinbase.com/products/ETH-USD/ticker).price",
 		"json(https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd).ethereum.usd"]
 
+btc = {
+  "oracle": "TRB",
+  "price":0,
+  "asset":"BTC/USD",
+  "timestamp": 0,
+  "lastPushedPrice":0,
+  "timeLastPushed":0
+}
+eth = {
+  "oracle": "TRB",
+  "price": 0,
+  "asset":"ETH/USD",
+  "timestamp": 0,
+  "lastPushedPrice":0,
+  "timeLastPushed":0
+}
+
 def getAPIValues():
-	apiVals = []
-	btc = {
-	  "oracle": "TRB",
-	  "price":  int(medianize(btcAPIs)*(10**18)),
-	  "asset":"BTC/USD",
-	  "timestamp":int(time.time())
-	}
-	eth = {
-	  "oracle": "TRB",
-	  "price": int(medianize(ethAPIs)*(10**18)),
-	  "asset":"ETH/USD",
-	  "timestamp": int(time.time())
-	}
+	btc["timestamp"] = int(time.time())
+	btc["price"] = int(medianize(btcAPIs)*(10**18))
+	eth["timestamp"] = int(time.time())
+	eth["price"] = int(medianize(ethAPIs)*(10**18))
 	return [btc,eth]
 
 def medianize(_apis):
@@ -73,9 +83,9 @@ def signValue(data):
 	intData = int(data,16)
 	return sign_cli(intKey,intData)
 
-def formatData(data):
-	print("Submitting ",data["asset"]," : ",data["price"]/(10**18))
-	n = data["oracle"].encode('utf-8').hex()
+def formatData(d
+	n = data["oracle"].enata):
+	print("Current Prices ",data["asset"]," : ",data["price"]/(10**18))code('utf-8').hex()
 	name =int(n,16)
 	n = Web3.toHex(str.encode(data["asset"]))
 	c = bin(int(data["asset"].encode('utf-8').hex(),16))[:128]
@@ -87,18 +97,6 @@ def submitSignature(_signedData):
 	x = requests.post(submissionURL, data = _signedData)
 	print(x)
 
-def TellorSignerMain():
-	while True:
-		assets = getAPIValues()
-		for i in range(len(assets)):
-			apiData = assets[i]
-			data = formatData(apiData)
-			signedData = signValue(data)
-			print(signedData)
-			submitSignature(signedData)
-		break
-		time.sleep(60);
-
 def EthKeyToStarkKey(eth_key):
 	message = encode_defunct(text="StarkKeyDerivation")
 	eth_signature = w3.eth.account.sign_message(message, private_key=eth_key)
@@ -107,7 +105,24 @@ def EthKeyToStarkKey(eth_key):
 	stark_private_key = hex(int(c, 2))
 	return stark_private_key
 
+def TellorSignerMain():
+	while True:
+		assets = getAPIValues()
+		for i in range(len(assets)):
+			apiData = assets[i]
+			data = formatData(apiData)
+			signedData = signValue(data)
+			if assets[i]["timestamp"]- assets[i]["timeLastPushed"] > 300 or abs(assets[i]["price"] - assets[i]["lastPushedPrice"]) > .01:
+				print("submitting data :", signedData)
+				submitSignature(signedData)
+				assets[i]["lastPushedPrice"] = assets[i]["price"]
+				assets[i]["timeLastPushed"] = assets[i]["timestamp"]
+		time.sleep(10);
+		print("....")
+
 TellorSignerMain()
 #print(medianize(btcAPIs))
 #print(medianize(ethAPIs))
 #print(public_cli(int(privateKey,16)))
+
+#print(public_cli(int(EthKeyToStarkKey(privateKey),16))
