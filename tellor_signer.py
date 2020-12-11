@@ -159,7 +159,7 @@ def TellorSignerMain():
 				submitSignature()
 				assets[i]["lastPushedPrice"] = assets[i]["price"]
 				assets[i]["timeLastPushed"] = assets[i]["timestamp"]
-		time.sleep(10);
+		time.sleep(10)
 		print("....")
 
 def testSubmit():
