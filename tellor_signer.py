@@ -54,7 +54,7 @@ btcAPIs_v2 = [
 ethAPIs_v2 = [
 	["https://api.pro.coinbase.com/products/ETH-USD/ticker", "price"],
 	["https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", "ethereum", "usd"],
-	["https://api.bittrex.com/api/v1.1/public/getticker?market=ETH-BTC", 'result', 'Last'],
+	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH", 'result', 'Last'],
 	["https://api.gemini.com/v1/pubticker/ethusd", 'last'],
 	["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
 ]
@@ -88,11 +88,11 @@ submitData = {
 
 def getAPIValues():
 	btc["timestamp"] = int(time.time())
-	price = medianize(btcAPIs)
+	price = medianize(btcAPIs_v2)
 	btc["strPrice"] = str(price)
 	btc["price"] = int(price*(10**18))
 	eth["timestamp"] = int(time.time())
-	price = medianize(ethAPIs)
+	price = medianize(ethAPIs_v2)
 	eth["strPrice"] =str(price)
 	eth["price"] = int(price*(10**18))
 	return [btc,eth]
@@ -102,7 +102,7 @@ def medianize(_apis):
 	didGet = False
 	n = 0
 	for i in _apis:
-		_res = fetchAPI(i)
+		_res = fetchAPI_v2(i)
 		if _res > 0:
 			didGet = True
 			finalRes.append(_res)
@@ -216,7 +216,7 @@ def testSubmit():
 	print(requests.post(submissionURL,data=json.dumps(data),headers=headers))
 
 #testSubmit()
-# TellorSignerMain()
+TellorSignerMain()
 #print(medianize(btcAPIs))
 #print(medianize(ethAPIs))
 #print(public_cli(int(privateKey,16)))
