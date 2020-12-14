@@ -106,7 +106,10 @@ def medianize(_apis):
 		if _res > 0:
 			didGet = True
 			finalRes.append(_res)
-	return finalRes[int(len(finalRes)/2)]
+	
+	#sort final results
+	finalRes.sort()
+	return finalRes[int(len(finalRes)//2)]
 
 def fetchAPI(_api):
 	_api = _api.replace("'", "")
