@@ -33,10 +33,31 @@ load_dotenv()
 privateKey = os.getenv("PRIVATEKEY")
 myName = "Tellor"
 submissionURL = "https://api.stage.dydx.exchange/v3/price"
-btcAPIs = ["json(https://api.pro.coinbase.com/products/BTC-USD/ticker).price",
-		"json(https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd).bitcoin.usd"]
-ethAPIs = [		"json(https://api.pro.coinbase.com/products/ETH-USD/ticker).price",
-		"json(https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd).ethereum.usd"]
+btcAPIs = [
+	"json(https://api.pro.coinbase.com/products/BTC-USD/ticker).price",
+	"json(https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd).bitcoin.usd"
+	"json(https://api.bittrex.com/api/v1.1/public/getticker?market=BTC-USD).result.last"]
+ethAPIs = [
+	"json(https://api.pro.coinbase.com/products/ETH-USD/ticker).price",
+	"json(https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd).ethereum.usd",
+	"json(https://api.bittrex.com/api/v1.1/public/getticker?market=ETC-USD).result.last"]
+
+btcAPIs_v2 = [
+	["https://api.pro.coinbase.com/products/BTC-USD/ticker", "price"],
+	["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", "bitcoin", "usd"],
+	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC", 'result', 'Last'],
+	["https://api.gemini.com/v1/pubticker/btcusd", 'last'],
+	["https://api.kraken.com/0/public/Ticker?pair=TBTCUSD", 'result', "TBTCUSD", 'c', 0]
+
+]
+
+ethAPIs_v2 = [
+	["https://api.pro.coinbase.com/products/ETH-USD/ticker", "price"],
+	["https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", "ethereum", "usd"],
+	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH", 'result', 'Last'],
+	["https://api.gemini.com/v1/pubticker/ethusd", 'last'],
+	["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
+]
 
 btc = {
   "price":0,
@@ -67,11 +88,11 @@ submitData = {
 
 def getAPIValues():
 	btc["timestamp"] = int(time.time())
-	price = medianize(btcAPIs)
+	price = medianize(btcAPIs_v2)
 	btc["strPrice"] = str(price)
 	btc["price"] = int(price*(10**18))
 	eth["timestamp"] = int(time.time())
-	price = medianize(ethAPIs)
+	price = medianize(ethAPIs_v2)
 	eth["strPrice"] =str(price)
 	eth["price"] = int(price*(10**18))
 	return [btc,eth]
@@ -81,7 +102,7 @@ def medianize(_apis):
 	didGet = False
 	n = 0
 	for i in _apis:
-		_res = fetchAPI (i)
+		_res = fetchAPI_v2(i)
 		if _res > 0:
 			didGet = True
 			finalRes.append(_res)
@@ -97,7 +118,7 @@ def fetchAPI(_api):
 	try:
 		response = requests.request("GET", _api)
 	except:
-		response = 0;
+		response = 0
 		print('API ERROR',_api)
 	if('json' in json):
 		if(len(filter)):
@@ -111,6 +132,32 @@ def fetchAPI(_api):
 	else:
 		price = response
 	return float(price)
+
+
+def fetchAPI_v2(public_api):
+	''' 
+	Return ticker price from public exchange web APIs
+	Input: list of str -- public api endpoint with any necessary json parsing keywords
+	'''
+	try:
+		#Parse list input
+		endpoint = public_api[0]
+		parsers = public_api[1:]
+
+		#Request JSON from public api endpoint
+		r = requests.get(endpoint)
+		json_ = r.json()
+		
+		#Parse through json with pre-written keywords
+		for keyword in parsers:
+			json_ = json_[keyword]
+
+		#return price (last remaining element of the json)
+		price = json_
+		return float(price)
+	except:
+		response = 0
+		print('API ERROR', public_api[0])
 
 
 def signValue(data):
@@ -159,7 +206,7 @@ def TellorSignerMain():
 				submitSignature()
 				assets[i]["lastPushedPrice"] = assets[i]["price"]
 				assets[i]["timeLastPushed"] = assets[i]["timestamp"]
-		time.sleep(10);
+		time.sleep(10)
 		print("....")
 
 def testSubmit():
@@ -178,5 +225,11 @@ TellorSignerMain()
 
 #Add   bitstamp
   # bittrex
-  # gemini
-  # kraken
+  # TODO gemini
+  # TODO kraken
+
+if __name__ == '__main__':
+	for i in btcAPIs_v2:
+		print(i[0])
+		print('---')
+		print(fetchAPI_v2(i))
