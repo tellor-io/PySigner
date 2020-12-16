@@ -6,9 +6,9 @@ from eth_account.messages import encode_defunct
 from web3.auto import w3
 from bitstring import BitArray
 from signature import pedersen_hash
-from dotenv import load_dotenv
+from dotenv import load_dotenv,find_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 
 privateKey = os.getenv("PRIVATEKEY")
@@ -164,7 +164,7 @@ def TellorSignerMain():
 			apiData = assets[i]
 			data = formatData(apiData)
 			signValue(data)
-			if assets[i]["timestamp"]- assets[i]["timeLastPushed"] > 300 or abs(assets[i]["price"] - assets[i]["lastPushedPrice"]) > .02:
+			if assets[i]["timestamp"]- assets[i]["timeLastPushed"] > 300 or abs(assets[i]["price"] - assets[i]["lastPushedPrice"]) > .05:
 				submitData["assetName"] = assets[i]["asset"]
 				submitData["price"] = assets[i]["strPrice"]
 				submitData["timestamp"] = assets[i]["timestamp"]
