@@ -143,7 +143,8 @@ def formatData(data):
 	return hash_price(int(hex(int(name,2)),16),asset,data["price"],data["timestamp"])
 
 def submitSignature():
-	print(submitData)
+	current_time = time.strftime("%H:%M", time.localtime(time.time()))
+	print(str(current_time)," | ",submitData)
 	headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 	print(requests.post(submissionURL,data=json.dumps(submitData),headers=headers))
 
