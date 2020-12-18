@@ -89,7 +89,7 @@ def medianize(_apis):
 	for i in _apis:
 		_res = fetchAPI(i)
 		if not _res:
-			pass
+			continue
 		if _res > 0:
 			didGet = True
 			finalRes.append(_res)
