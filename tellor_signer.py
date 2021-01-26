@@ -12,7 +12,7 @@ load_dotenv(find_dotenv())
 
 
 privateKey = os.getenv("PRIVATEKEY")
-myName = "Tellor"
+myName = "Tello"
 submissionURL = "https://api.stage.dydx.exchange/v3/price"
 
 # BTC and ETH api endpoints from centralized exchanges
@@ -139,8 +139,8 @@ def formatData(data):
 	c = bin(int(data["asset"].encode('utf-8').hex(),16))[:128]
 	asset = hex(int(c, 2)).ljust(34,"0")
 	asset =int(asset,16)
-	name = bin(int(myName.encode('utf-8').hex(),16))[:40]
-	return hash_price(int(hex(int(name,2)),16),asset,data["price"],data["timestamp"])
+	name = myName.encode('utf-8').hex()
+	return hash_price(int(name,16),asset,data["price"],data["timestamp"])
 
 def submitSignature():
 	current_time = time.strftime("%H:%M", time.localtime(time.time()))
