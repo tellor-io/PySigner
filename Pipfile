@@ -11,6 +11,8 @@ python-dotenv = "*"
 mpmath = "*"
 sympy = "*"
 ecdsa = "*"
+eth-brownie = "*"
+python-decouple = "*"
 
 [dev-packages]
 
