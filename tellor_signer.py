@@ -68,7 +68,7 @@ submitData = {
 }
 
 def getAPIValues():
-
+	'''Formats values into approrpriate data types and adds them to btc or eth helper dict'''
 	btc["timestamp"] = int(time.time())
 	price = medianize(btcAPIs)
 	btc["strPrice"] = str(price)
@@ -96,6 +96,8 @@ def medianize(_apis):
 	
 	#sort final results
 	finalRes.sort()
+
+	#return median element
 	return finalRes[int(len(finalRes)/2)]
 
 def fetchAPI(public_api):
@@ -126,6 +128,7 @@ def fetchAPI(public_api):
 
 
 def signValue(data):
+	'''Sign values with Stark Key'''
 	starkKey = EthKeyToStarkKey(privateKey)
 	intKey = int(starkKey,16)
 	intData = int(data,16)
@@ -135,6 +138,7 @@ def signValue(data):
 	submitData["signatureS"] = str(y[1])
 
 def formatData(data):
+	'''Format data with appropriate data types'''
 	n = Web3.toHex(str.encode(data["asset"]))
 	c = bin(int(data["asset"].encode('utf-8').hex(),16))[:128]
 	asset = hex(int(c, 2)).ljust(34,"0")
@@ -143,12 +147,14 @@ def formatData(data):
 	return hash_price(int(name,16),asset,data["price"],data["timestamp"])
 
 def submitSignature():
+	'''Helper function for printing/submitting data'''
 	current_time = time.strftime("%H:%M", time.localtime(time.time()))
 	print(str(current_time)," | ",submitData)
 	headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 	print(requests.post(submissionURL,data=json.dumps(submitData),headers=headers))
 
 def EthKeyToStarkKey(eth_key):
+	'''Convert eth message signature to Stark Key signature with keccak'''
 	message = encode_defunct(text="StarkKeyDerivation")
 	eth_signature = w3.eth.account.sign_message(message, private_key=eth_key)
 	ethSignatureHash = Web3.keccak(eth_signature.signature)
@@ -157,6 +163,7 @@ def EthKeyToStarkKey(eth_key):
 	return stark_private_key
 
 def TellorSignerMain():
+	'''Submit price if last price submission was 5 minutes ago or if price deviates by 5 percent'''
 	submitData["starkKey"] = str(public_cli(int(EthKeyToStarkKey(privateKey),16)))
 	submitData["oracleName"] = str(myName)
 	while True:
