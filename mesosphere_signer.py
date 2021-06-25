@@ -7,20 +7,22 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 private_key = os.getenv("PRIVATEKEY")
-node = os.getenv("NODE")
+node = os.getenv("ARBITRUM_TESTNET_NODE")
 myName = "Tellor"
 w3 = Web3(Web3.HTTPProvider(node))
 w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-with open('abi.json') as f:
+with open('TellorMesosphere.json') as f:
     abi = f.read()
 
-tellor_playground = w3.eth.contract(
-    Web3.toChecksumAddress('0x20374E579832859f180536A69093A126Db1c8aE9'),
+mesosphere = w3.eth.contract(
+    Web3.toChecksumAddress('0x7A1e398A228271D1B8b1fb1ede678A3e4c79f50A'),
     abi = abi
 )
 
 acc = w3.eth.default_account = w3.eth.account.from_key(private_key)
+precision = 1e6
+
 print('your address', acc.address)
 print('your balance', w3.eth.get_balance(acc.address))
 # BTC and ETH api endpoints from centralized exchanges
@@ -47,7 +49,7 @@ ethAPIs = [
 # these are used for data wrangling, from centralized API endpoints to medianization
 
 btc = {
-  "requestId":0,
+  "requestId":2,
   "price":0,
   "strPrice":"",
   "asset":"BTCUSD",
@@ -108,11 +110,11 @@ def getAPIValues():
     btc["timestamp"] = int(time.time())
     price = medianize(btcAPIs)
     btc["strPrice"] = str(price)
-    btc["price"] = int(price*(10**18))
+    btc["price"] = int(price*(precision))
     eth["timestamp"] = int(time.time())
     price = medianize(ethAPIs)
     eth["strPrice"] =str(price)
-    eth["price"] = int(price*(10**18))
+    eth["price"] = int(price*(precision))
     return [btc,eth]
 
 def medianize(_apis):
@@ -136,26 +138,28 @@ def medianize(_apis):
 
 def TellorSignerMain():
     while True:
-        nonce = w3.eth.get_transaction_count('0xfa30C73618d5b34Cb30F17C1874cd426Da4C0668')
         assets = getAPIValues()
         for asset in assets:
+            nonce = w3.eth.get_transaction_count(acc.address)
             if asset["timestamp"] - asset["timeLastPushed"] > 5 or abs(asset["price"] - asset["lastPushedPrice"]) > .05:
-                tx = tellor_playground.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
+                tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
                     {
-                        'chainId': 4,
                         'nonce': nonce,
-                        'gas': 400000,
+                        'gas': 4000000,
                         'gasPrice': w3.toWei('2', 'gwei'),
+                        'chainId':421611
                     }
                 )
                 tx_signed = w3.eth.default_account.sign_transaction(tx)
                 try:
                     w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+                    print(asset['asset'])
+                    print(asset['price'])
                 except:
                     print(f'''Warning: tx may have sent with wrong nonce.
-                    \nCheck https://rinkeby.etherscan.io/address/{acc.address}''')
+                    \nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
 
-        time.sleep(0)
+        time.sleep(10)
         print("waiting to submit....")
 
 TellorSignerMain()
