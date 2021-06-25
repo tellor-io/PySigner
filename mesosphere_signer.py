@@ -138,10 +138,9 @@ def medianize(_apis):
 
 def TellorSignerMain():
     while True:
-        nonce = w3.eth.get_transaction_count(acc.address)
         assets = getAPIValues()
         for asset in assets:
-            print(asset['price'])
+            nonce = w3.eth.get_transaction_count(acc.address)
             if asset["timestamp"] - asset["timeLastPushed"] > 5 or abs(asset["price"] - asset["lastPushedPrice"]) > .05:
                 tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
                     {
@@ -154,6 +153,8 @@ def TellorSignerMain():
                 tx_signed = w3.eth.default_account.sign_transaction(tx)
                 try:
                     w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+                    print(asset['asset'])
+                    print(asset['price'])
                 except:
                     print(f'''Warning: tx may have sent with wrong nonce.
                     \nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
