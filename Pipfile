@@ -12,7 +12,7 @@ mpmath = "*"
 sympy = "*"
 ecdsa = "*"
 python-decouple = "*"
-python-telegram-bot = "*"
+pytelegrambotapi = "*"
 
 [dev-packages]
 
