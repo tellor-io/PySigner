@@ -4,15 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-web3 = "*"
+web3 = "==5.20.0"
 eth-account = "*"
 bitstring = "*"
 python-dotenv = "*"
 mpmath = "*"
 sympy = "*"
 ecdsa = "*"
-eth-brownie = "*"
 python-decouple = "*"
+pytelegrambotapi = "*"
 
 [dev-packages]
 
