@@ -1,4 +1,0 @@
-apps:
-    script: '/bin/bash' 
-    name: 'script1'
-    args:  ['-c', 'pipenv run python mesosphere_signer.py']
