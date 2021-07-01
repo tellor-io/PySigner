@@ -1,11 +1,14 @@
 import time, requests, os
 
+from dotenv import load_dotenv, find_dotenv
+import telebot
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
-from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 
+
+bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 private_key = os.getenv("PRIVATEKEY")
 node = os.getenv("ARBITRUM_TESTNET_NODE")
 myName = "Tellor"
@@ -138,10 +141,17 @@ def medianize(_apis):
 
 def TellorSignerMain():
 	while True:
+		alert_sent = False
 		assets = getAPIValues()
 		nonce = w3.eth.get_transaction_count(acc.address)
 		for asset in assets:
-			print(nonce)
+			#if signer balance is less than half an ether, send alert
+			if (w3.eth.get_balance(acc.address) < 5E17) and ~alert_sent:
+				bot.send_message(os.getenv("CHAT_ID"), '''warning: signer balance now below .5 ETH
+				\nCheck https://rinkeby-explorer.arbitrum.io/address/'''+ acc.address )
+				alert_sent = True
+			else:
+				alert_sent = False
 			if (asset["timestamp"] - asset["timeLastPushed"] > 5) or (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
 				tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
 					{
@@ -163,6 +173,9 @@ def TellorSignerMain():
 				except:
 					print(f'''Warning: tx may have sent with wrong nonce.
 					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
+					bot.send_message(os.getenv("CHAT_ID"), '''urgent: signer ran out out of ETH"
+					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
+					time.sleep(60*15)
 
 		print("waiting to submit....")
 		time.sleep(10)
