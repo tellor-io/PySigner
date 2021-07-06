@@ -173,7 +173,7 @@ def TellorSignerMain():
 				except:
 					print(f'''Warning: tx may have sent with wrong nonce.
 					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
-					bot.send_message(os.getenv("CHAT_ID"), '''urgent: signer ran out out of ETH"
+					bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
 					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
 					time.sleep(60*15)
 
