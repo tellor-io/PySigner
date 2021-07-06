@@ -7,6 +7,6 @@
         "autorestart": false,
         "max_restarts": 5,
         "interpreter" : "pipenv",
-        "interpreter_args": "run python3"
+        "interpreter_args": "run python"
     }]
 }
