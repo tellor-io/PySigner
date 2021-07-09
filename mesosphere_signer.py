@@ -10,7 +10,7 @@ load_dotenv(find_dotenv())
 
 bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 private_key = os.getenv("PRIVATEKEY")
-node = os.getenv("ARBITRUM_TESTNET_NODE")
+node = os.getenv("MUMBAI_NODE")
 myName = "Tellor"
 w3 = Web3(Web3.HTTPProvider(node))
 w3.middleware_onion.inject(geth_poa_middleware, layer=0)
@@ -19,7 +19,7 @@ with open('TellorMesosphere.json') as f:
 	abi = f.read()
 
 mesosphere = w3.eth.contract(
-	Web3.toChecksumAddress('0x7A1e398A228271D1B8b1fb1ede678A3e4c79f50A'),
+	Web3.toChecksumAddress('0x32704dCEb8dA339516f4AE561Cd40a6cBE6d98c9'),
 	abi = abi
 )
 
@@ -158,7 +158,7 @@ def TellorSignerMain():
 						'nonce': nonce,
 						'gas': 4000000,
 						'gasPrice': w3.toWei('2', 'gwei'),
-						'chainId':421611
+						'chainId':80001
 					}
 				)
 				tx_signed = w3.eth.default_account.sign_transaction(tx)
