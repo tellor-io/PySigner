@@ -48,6 +48,15 @@ ethAPIs = [
 	["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
 ]
 
+daiAPIs = [
+	["https://api.pro.coinbase.com/products/DAI-USD/ticker", "price"],
+	["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "bitcoin", "usd"],
+	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI", 'result', 'Last'],
+	["https://api.gemini.com/v1/pubticker/daiusd", 'last'],
+	["https://api.kraken.com/0/public/Ticker?pair=DAIUSD", 'result', "DAIUSD", 'c', 0]
+
+]
+
 # btc, eth are helper dictionaries used to distinguish btc prices and eth prices
 # these are used for data wrangling, from centralized API endpoints to medianization
 
@@ -146,7 +155,7 @@ def TellorSignerMain():
 		nonce = w3.eth.get_transaction_count(acc.address)
 		for asset in assets:
 			#if signer balance is less than half an ether, send alert
-			if (w3.eth.get_balance(acc.address) < 5E17) and ~alert_sent:
+			if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
 				bot.send_message(os.getenv("CHAT_ID"), '''warning: signer balance now below .5 ETH
 				\nCheck https://rinkeby-explorer.arbitrum.io/address/'''+ acc.address )
 				alert_sent = True
@@ -170,6 +179,8 @@ def TellorSignerMain():
 					asset["lastPushedPrice"] = asset["price"]
 					asset["timeLastPushed"] = asset["timestamp"]
 					nonce += 1
+					print("waiting to submit....")
+					time.sleep(10)
 				except:
 					print(f'''Warning: tx may have sent with wrong nonce.
 					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
@@ -178,7 +189,5 @@ def TellorSignerMain():
 						\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
 						time.sleep(60*15)
 
-		print("waiting to submit....")
-		time.sleep(10)
 
 TellorSignerMain()
