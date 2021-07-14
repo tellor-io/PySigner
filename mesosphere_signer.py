@@ -203,8 +203,8 @@ def TellorSignerMain():
 	while True:
 		alert_sent = False
 		assets = getAPIValues()
-		nonce = w3.eth.get_transaction_count(acc.address)
 		for asset in assets:
+			nonce = w3.eth.get_transaction_count(acc.address)
 			#if signer balance is less than half an ether, send alert
 			if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
 				bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
@@ -217,7 +217,7 @@ def TellorSignerMain():
 					{
 						'nonce': nonce,
 						'gas': 4000000,
-						'gasPrice': w3.toWei('2', 'gwei'),
+						'gasPrice': w3.toWei('3', 'gwei'),
 						'chainId':chainId
 					}
 				)
@@ -229,9 +229,9 @@ def TellorSignerMain():
 
 				asset["lastPushedPrice"] = asset["price"]
 				asset["timeLastPushed"] = asset["timestamp"]
-				nonce += 1
+				# nonce += 1
 				print("waiting to submit....")
-				time.sleep(10)
+				time.sleep(15)
 				# except Exception:
 				# 	print(f'''Warning: tx may have sent with wrong nonce.
 				# 	\nCheck {explorer}/address/{acc.address}''')
