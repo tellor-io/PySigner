@@ -222,23 +222,22 @@ def TellorSignerMain():
 					}
 				)
 				tx_signed = w3.eth.default_account.sign_transaction(tx)
-				# try:
-				w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-				print(asset['asset'])
-				print(asset['price'])
+				try:
+					w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+					print(asset['asset'])
+					print(asset['price'])
 
-				asset["lastPushedPrice"] = asset["price"]
-				asset["timeLastPushed"] = asset["timestamp"]
-				# nonce += 1
-				print("waiting to submit....")
-				time.sleep(15)
-				# except Exception:
-				# 	print(f'''Warning: tx may have sent with wrong nonce.
-				# 	\nCheck {explorer}/address/{acc.address}''')
-				# 	if w3.eth.get_balance(acc.address) < 0.005*1E18:
-				# 		bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
-				# 		\nCheck {explorer}/address/{acc.address}''')
-				# 		time.sleep(60*15)
+					asset["lastPushedPrice"] = asset["price"]
+					asset["timeLastPushed"] = asset["timestamp"]
+					# nonce += 1
+					print("waiting to submit....")
+					time.sleep(15)
+				except:
+					nonce += 1
+					if w3.eth.get_balance(acc.address) < 0.005*1E18:
+						bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
+						\nCheck {explorer}/address/{acc.address}''')
+						time.sleep(60*15)
 
 
 TellorSignerMain()
