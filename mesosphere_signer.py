@@ -178,7 +178,7 @@ def getAPIValues():
 	price = eth["price"] / dai["price"]
 	eth_in_dai["price"] = int(price*precision)
 
-	return [btc, eth_in_dai]
+	return [eth_in_dai]
 
 def medianize(_apis):
 	'''
