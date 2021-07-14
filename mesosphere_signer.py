@@ -1,4 +1,4 @@
-import time, requests, os
+import argparse, time, json, requests, os
 
 from dotenv import load_dotenv, find_dotenv
 import telebot
@@ -7,19 +7,40 @@ from web3.middleware import geth_poa_middleware
 
 load_dotenv(find_dotenv())
 
+with open('abi.json') as f:
+	abi = f.read()
+	f.close()
 
-bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-private_key = os.getenv("PRIVATEKEY")
-node = os.getenv("MUMBAI_NODE")
-myName = "Tellor"
-w3 = Web3(Web3.HTTPProvider(node))
-w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+with open('config.json') as f:
+	config = json.loads(f.read())[0]
+	f.close()
 
 with open('TellorMesosphere.json') as f:
 	abi = f.read()
 
+
+#Building CLI interface
+parser = argparse.ArgumentParser(description='Submit values to Tellor Mesosphere')
+parser.add_argument('-n', '--network', nargs=1, required=True, type=str, help="an EVM compatible network")
+args = parser.parse_args()
+network = args.network[0]
+
+node = config['networks'][network]['node']
+explorer = config['networks'][network]['explorer']
+chainId = config['networks'][network]['chainId']
+
+contract_address = config['address']
+
+bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
+private_key = os.getenv("PRIVATEKEY")
+myName = "Tellor"
+w3 = Web3(Web3.HTTPProvider(node))
+
+#Choose network from CLI flag
+if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
+	w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 mesosphere = w3.eth.contract(
-	Web3.toChecksumAddress('0x32704dCEb8dA339516f4AE561Cd40a6cBE6d98c9'),
+	Web3.toChecksumAddress(contract_address),
 	abi = abi
 )
 
@@ -50,7 +71,7 @@ ethAPIs = [
 
 daiAPIs = [
 	["https://api.pro.coinbase.com/products/DAI-USD/ticker", "price"],
-	["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "bitcoin", "usd"],
+	["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "dai", "usd"],
 	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI", 'result', 'Last'],
 	["https://api.gemini.com/v1/pubticker/daiusd", 'last'],
 	["https://api.kraken.com/0/public/Ticker?pair=DAIUSD", 'result', "DAIUSD", 'c', 0]
@@ -73,6 +94,26 @@ eth = {
   "requestId":1,
   "price": 0,
   "asset":"ETHUSD",
+  "strPrice":"",
+  "timestamp": 0,
+  "lastPushedPrice":0,
+  "timeLastPushed":0
+}
+
+dai = {
+  "requestId":39,
+  "price": 0,
+  "asset":"DAIUSD",
+  "strPrice":"",
+  "timestamp": 0,
+  "lastPushedPrice":0,
+  "timeLastPushed":0
+}
+
+eth_in_dai = {
+  "requestId":1,
+  "price": 0,
+  "asset":"ETHDAI",
   "strPrice":"",
   "timestamp": 0,
   "lastPushedPrice":0,
@@ -123,11 +164,21 @@ def getAPIValues():
 	price = medianize(btcAPIs)
 	btc["strPrice"] = str(price)
 	btc["price"] = int(price*(precision))
+
 	eth["timestamp"] = int(time.time())
 	price = medianize(ethAPIs)
 	eth["strPrice"] =str(price)
 	eth["price"] = int(price*(precision))
-	return [btc,eth]
+
+	dai["timestamp"] = int(time.time())
+	price = medianize(daiAPIs)
+	dai["price"] = int(price*precision)
+
+	eth_in_dai["timestamp"] = int(time.time())
+	price = eth["price"] / dai["price"]
+	eth_in_dai["price"] = int(price*precision)
+
+	return [btc, eth_in_dai]
 
 def medianize(_apis):
 	'''
@@ -156,8 +207,8 @@ def TellorSignerMain():
 		for asset in assets:
 			#if signer balance is less than half an ether, send alert
 			if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
-				bot.send_message(os.getenv("CHAT_ID"), '''warning: signer balance now below .5 ETH
-				\nCheck https://rinkeby-explorer.arbitrum.io/address/'''+ acc.address )
+				bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
+				\nCheck {explorer}/address/'''+ acc.address)
 				alert_sent = True
 			else:
 				alert_sent = False
@@ -167,27 +218,27 @@ def TellorSignerMain():
 						'nonce': nonce,
 						'gas': 4000000,
 						'gasPrice': w3.toWei('2', 'gwei'),
-						'chainId':80001
+						'chainId':chainId
 					}
 				)
 				tx_signed = w3.eth.default_account.sign_transaction(tx)
-				try:
-					w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-					print(asset['asset'])
-					print(asset['price'])
+				# try:
+				w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+				print(asset['asset'])
+				print(asset['price'])
 
-					asset["lastPushedPrice"] = asset["price"]
-					asset["timeLastPushed"] = asset["timestamp"]
-					nonce += 1
-					print("waiting to submit....")
-					time.sleep(10)
-				except:
-					print(f'''Warning: tx may have sent with wrong nonce.
-					\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
-					if w3.eth.get_balance(acc.address) < 0.005*1E18:
-						bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
-						\nCheck https://rinkeby-explorer.arbitrum.io/address/{acc.address}''')
-						time.sleep(60*15)
+				asset["lastPushedPrice"] = asset["price"]
+				asset["timeLastPushed"] = asset["timestamp"]
+				nonce += 1
+				print("waiting to submit....")
+				time.sleep(10)
+				# except Exception:
+				# 	print(f'''Warning: tx may have sent with wrong nonce.
+				# 	\nCheck {explorer}/address/{acc.address}''')
+				# 	if w3.eth.get_balance(acc.address) < 0.005*1E18:
+				# 		bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
+				# 		\nCheck {explorer}/address/{acc.address}''')
+				# 		time.sleep(60*15)
 
 
 TellorSignerMain()
