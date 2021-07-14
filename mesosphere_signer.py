@@ -205,6 +205,7 @@ def TellorSignerMain():
 		assets = getAPIValues()
 		for asset in assets:
 			nonce = w3.eth.get_transaction_count(acc.address)
+			print(nonce)
 			#if signer balance is less than half an ether, send alert
 			if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
 				bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
@@ -231,7 +232,7 @@ def TellorSignerMain():
 					asset["timeLastPushed"] = asset["timestamp"]
 					# nonce += 1
 					print("waiting to submit....")
-					time.sleep(15)
+					time.sleep(5)
 				except:
 					nonce += 1
 					if w3.eth.get_balance(acc.address) < 0.005*1E18:
