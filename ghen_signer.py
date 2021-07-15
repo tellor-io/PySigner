@@ -54,19 +54,8 @@ print('your balance', w3.eth.get_balance(acc.address))
 # BTC and ETH api endpoints from centralized exchanges
 # Each endpoint is encased in a list with the keywords that parse the JSON to the last price
 
-btcAPIs = [
-	["https://api.pro.coinbase.com/products/BTC-USD/ticker", "price"],
-	["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", "bitcoin", "usd"],
-	["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC", 'result', 'Last'],
-	["https://api.gemini.com/v1/pubticker/btcusd", 'last'],
-	["https://api.kraken.com/0/public/Ticker?pair=TBTCUSD", 'result', "TBTCUSD", 'c', 0]
-
-]
-
-ethAPIs = [
-	['subgraph', 'https://thegraph.com/legacy-explorer/subgraph/zippoxer/sushiswap-subgraph-fork', #api endpoint
+ethAPIs = ['https://thegraph.com/legacy-explorer/subgraph/zippoxer/sushiswap-subgraph-fork', #api endpoint
 	'data', 'pair', 'token0price'] #parsers
-]
 
 daiAPIs = [
 ]
@@ -74,15 +63,6 @@ daiAPIs = [
 # btc, eth are helper dictionaries used to distinguish btc prices and eth prices
 # these are used for data wrangling, from centralized API endpoints to medianization
 
-btc = {
-  "requestId":2,
-  "price":0,
-  "strPrice":"",
-  "asset":"BTCUSD",
-  "timestamp": 0,
-  "lastPushedPrice":0,
-  "timeLastPushed":0
-}
 eth = {
   "requestId":1,
   "price": 0,
@@ -93,25 +73,6 @@ eth = {
   "timeLastPushed":0
 }
 
-dai = {
-  "requestId":39,
-  "price": 0,
-  "asset":"DAIUSD",
-  "strPrice":"",
-  "timestamp": 0,
-  "lastPushedPrice":0,
-  "timeLastPushed":0
-}
-
-eth_in_dai = {
-  "requestId":1,
-  "price": 0,
-  "asset":"ETHDAI",
-  "strPrice":"",
-  "timestamp": 0,
-  "lastPushedPrice":0,
-  "timeLastPushed":0
-}
 
 #final data submission format
 
@@ -131,99 +92,37 @@ def fetchAPI(public_api):
 	Returns: (str) ticker price from public exchange web APIs
 	Input: (list of str) public api endpoint with any necessary json parsing keywords
 	'''
-	try:
-		#Parse list input
-		endpoint = public_api[0]
-		
-		#send post request instead for subgraph queries
-		if endpoint == 'subgraph':
-			r = requests.post(public_api[1], json={'query': '''
-{
-  pair(id: "0x397ff1542f962076d0bfe58ea045ffa2d347aca0") {
-    id
-    token0 {
-      id,
-      symbol
-    }
-    token1 {
-      id,
-      symbol
-    }
-    token0Price
-    token1Price
-  }
-}
-			'''
-			})
-			breakpoint()
-			parsers = public_api[2:]
-			json_ = r.json()
-			for keyword in parsers:
-				json_ = json_[keyword]
+	
+	r = requests.post('https://api.thegraph.com/subgraphs/name/zippoxer/sushiswap-subgraph-fork',json={'query':'''
+		{
+		pair(id: "0x397ff1542f962076d0bfe58ea045ffa2d347aca0") {
+			id
+			token0 {
+			id,
+			symbol
+			}
+			token1 {
+			id,
+			symbol
+			}
+			token0Price
+			token1Price
+		}
+		}
 
-			price = json_
-			return float(price)	
+		'''}).json()['data']['pair']['token0Price']
 
-		parsers = public_api[1:]
-
-		#Request JSON from public api endpoint
-		r = requests.get(endpoint)
-		json_ = r.json()
-		
-		#Parse through json with pre-written keywords
-		for keyword in parsers:
-			json_ = json_[keyword]
-
-		#return price (last remaining element of the json)
-		price = json_
-		return float(price)
-	except:
-		response = 0
-		print('API ERROR', public_api[0])
+	return float(r)
 
 def getAPIValues():
 
-	btc["timestamp"] = int(time.time())
-	price = medianize(btcAPIs)
-	btc["strPrice"] = str(price)
-	btc["price"] = int(price*(precision))
-
 	eth["timestamp"] = int(time.time())
-	price = medianize(ethAPIs)
+	price = fetchAPI(ethAPIs)
 	eth["strPrice"] =str(price)
 	eth["price"] = int(price*(precision))
 
-	dai["timestamp"] = int(time.time())
-	price = medianize(daiAPIs)
-	dai["price"] = int(price*precision)
 
-	eth_in_dai["timestamp"] = int(time.time())
-	price = eth["price"] / dai["price"]
-	eth_in_dai["price"] = int(price*precision)
-
-	return [eth_in_dai]
-
-def medianize(_apis):
-	'''
-	Medianizes price of an asset from a selection of centralized price APIs
-	'''
-	finalRes = []
-	didGet = False
-	n = 0
-	if len(_apis) > 1:
-		for i in _apis:
-			_res = fetchAPI(i)
-			if not _res:
-				continue
-			if _res > 0:
-				didGet = True
-				finalRes.append(_res)
-	else:
-		finalRes.append(fetchAPI(_apis[0]))
-	
-	#sort final results
-	finalRes.sort()
-	return finalRes[int(len(finalRes)/2)]
+	return [eth]
 
 def TellorSignerMain():
 	while True:
