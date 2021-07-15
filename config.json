@@ -1,0 +1,22 @@
+[{
+    "address":"0xACC2d27400029904919ea54fFc0b18Bf07C57875",
+    
+    "networks": {
+        "rinkeby": {
+            "node": "https://eth-rinkeby.alchemyapi.io/v2/",
+            "explorer": "https://rinkeby.etherscan.io/",
+            "chainId": 4
+        },
+        "mumbai": {
+            "node": "https://rpc-mumbai.matic.today",
+            "explorer": "https://mumbai.polygonscan.com/",
+            "chainId": 80001
+        },
+        "polygon":{
+            "node":"https://rpc-mainnet.matic.network",
+            "explorer": "https://polygonscan.com",
+            "chainId": 137
+        }
+
+    }
+}]
