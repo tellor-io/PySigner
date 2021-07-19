@@ -133,7 +133,7 @@ submitData = {
 }
 
 def fetchAPI(public_api):
-	''' 
+	'''
 	Fetches price data from centralized public web API endpoints
 	Returns: (str) ticker price from public exchange web APIs
 	Input: (list of str) public api endpoint with any necessary json parsing keywords
@@ -146,7 +146,7 @@ def fetchAPI(public_api):
 		#Request JSON from public api endpoint
 		r = requests.get(endpoint)
 		json_ = r.json()
-		
+
 		#Parse through json with pre-written keywords
 		for keyword in parsers:
 			json_ = json_[keyword]
@@ -159,42 +159,29 @@ def fetchAPI(public_api):
 		print('API ERROR', public_api[0])
 
 def getAPIValues():
-
-	btc["timestamp"] = int(time.time())
-	price = medianize(btcAPIs)
-	btc["strPrice"] = str(price)
-	btc["price"] = int(price*(precision))
-
-	eth["timestamp"] = int(time.time())
-	price = medianize(ethAPIs)
-	eth["strPrice"] =str(price)
-	eth["price"] = int(price*(precision))
-
-	dai["timestamp"] = int(time.time())
-	price = medianize(daiAPIs)
-	dai["price"] = int(price*precision)
-
 	eth_in_dai["timestamp"] = int(time.time())
-	price = eth["price"] / dai["price"]
-	eth_in_dai["price"] = int(price*precision)
+	price = medianize(ethAPIs, daiAPIs)
+	eth_in_dai["price"] = int(price)
 
 	return [eth_in_dai]
 
-def medianize(_apis):
+def medianize(_ethAPIs, _daiAPIs):
 	'''
 	Medianizes price of an asset from a selection of centralized price APIs
 	'''
 	finalRes = []
 	didGet = False
 	n = 0
-	for i in _apis:
-		_res = fetchAPI(i)
-		if not _res:
+	for i, j in zip(_ethAPIs, _daiAPIs):
+		_resETH = fetchAPI(i)
+		_resDAI = fetchAPI(j)
+		if not _resETH:
 			continue
-		if _res > 0:
+		if _resETH > 0 and _resDAI > 0:
 			didGet = True
-			finalRes.append(_res)
-	
+			# finalRes.append(int(int(_resETH*(precision)) / int(_resDAI*(precision)))*precision)
+			finalRes.append(int((_resETH/_resDAI)*precision))
+
 	#sort final results
 	finalRes.sort()
 	return finalRes[int(len(finalRes)/2)]
