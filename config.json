@@ -13,7 +13,7 @@
             "chainId": 80001
         },
         "polygon":{
-            "node":"https://rpc-mainnet.matic.network",
+            "node":"https://rpc-mainnet.maticvigil.com",
             "explorer": "https://polygonscan.com",
             "chainId": 137
         }
