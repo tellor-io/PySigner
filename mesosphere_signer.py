@@ -179,6 +179,10 @@ def medianize(_ethAPIs, _daiAPIs):
 			continue
 		if not _resDAI:
 			continue
+		if _resETH is None:
+			continue
+		if _resDAI is None:
+			continue
 		if _resETH > 0 and _resDAI > 0:
 			didGet = True
 			# finalRes.append(int(int(_resETH*(precision)) / int(_resDAI*(precision)))*precision)
