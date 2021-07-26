@@ -1,4 +1,4 @@
-import argparse, time, json, requests, os
+import argparse, time, json, requests, os, traceback
 
 from dotenv import load_dotenv, find_dotenv
 import telebot
@@ -189,7 +189,13 @@ def medianize(_ethAPIs, _daiAPIs):
 def TellorSignerMain():
 	while True:
 		alert_sent = False
-		assets = getAPIValues()
+		try:
+			assets = getAPIValues()
+		except:
+			if not alert_sent:
+				traceback = traceback.format_exec()
+				bot.send_message(traceback)
+				alert_sent = True
 		for asset in assets:
 			nonce = w3.eth.get_transaction_count(acc.address)
 			print(nonce)
