@@ -203,25 +203,31 @@ def TellorSignerMain():
 				bot.send_message(traceback)
 				alert_sent = True
 		for asset in assets:
-			nonce = w3.eth.get_transaction_count(acc.address)
-			print(nonce)
-			#if signer balance is less than half an ether, send alert
-			if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
-				bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
-				\nCheck {explorer}/address/'''+ acc.address)
-				alert_sent = True
-			else:
-				alert_sent = False
-			if (asset["timestamp"] - asset["timeLastPushed"] > 5) or (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
-				tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
-					{
-						'nonce': nonce,
-						'gas': 4000000,
-						'gasPrice': w3.toWei('3', 'gwei'),
-						'chainId':chainId
-					}
-				)
-				tx_signed = w3.eth.default_account.sign_transaction(tx)
+			try:
+				nonce = w3.eth.get_transaction_count(acc.address)
+				print(nonce)
+				#if signer balance is less than half an ether, send alert
+				if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
+					bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
+					\nCheck {explorer}/address/'''+ acc.address)
+					alert_sent = True
+				else:
+					alert_sent = False
+				if (asset["timestamp"] - asset["timeLastPushed"] > 5) or (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
+					tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
+						{
+							'nonce': nonce,
+							'gas': 4000000,
+							'gasPrice': w3.toWei('3', 'gwei'),
+							'chainId':chainId
+						}
+					)
+					tx_signed = w3.eth.default_account.sign_transaction(tx)
+			except:
+				if not alert_sent:
+					traceback = traceback.format_exec()
+					bot.send_message(traceback)
+					alert_sent = True
 				try:
 					w3.eth.send_raw_transaction(tx_signed.rawTransaction)
 					print(asset['asset'])
