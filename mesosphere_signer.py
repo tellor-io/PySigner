@@ -234,7 +234,7 @@ def TellorSignerMain():
 				tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 				print('tx sent')
 			except ValueError as e:
-				print(e.message)
+				print(e.with_traceback())
 				nonce += 1
 				break
 			try:
