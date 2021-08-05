@@ -198,16 +198,14 @@ def TellorSignerMain():
 		try:
 			assets = getAPIValues()
 		except:
-			print('here1')
 			if not alert_sent:
 				tb = traceback.format_exc()
-				bot.send_message(tb)
+				bot.send_message(str(tb))
 				alert_sent = True
 		for asset in assets:
 			try:
 				nonce = w3.eth.get_transaction_count(acc.address)
 				print(nonce)
-				print('here2')
 				#if signer balance is less than half an ether, send alert
 				if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
 					bot.send_message(os.getenv("CHAT_ID"), f'''warning: signer balance now below .5 ETH
@@ -225,14 +223,12 @@ def TellorSignerMain():
 						}
 					)
 					tx_signed = w3.eth.default_account.sign_transaction(tx)
-					print('here3')
 			except:
 				if not alert_sent:
 					tb = traceback.format_exc()
 					breakpoint()
 					bot.send_message(str(tb))
 					alert_sent = True
-				print('here4')
 			try:
 				tx_hash = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
 				tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -251,7 +247,6 @@ def TellorSignerMain():
 				print("waiting to submit....")
 				time.sleep(20)
 			except:
-				print('here5')
 				nonce += 1
 				if w3.eth.get_balance(acc.address) < 0.005*1E18:
 					bot.send_message(os.getenv("CHAT_ID"), f'''urgent: signer ran out out of ETH"
