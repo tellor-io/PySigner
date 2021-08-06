@@ -36,6 +36,8 @@ args = parser.parse_args()
 network = args.network[0]
 
 node = config['networks'][network]['node']
+if network == 'rinkeby':
+    node += os.getenv('INFURA_KEY')
 explorer = config['networks'][network]['explorer']
 chainId = config['networks'][network]['chainId']
 
