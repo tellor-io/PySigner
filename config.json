@@ -3,7 +3,7 @@
     
     "networks": {
         "rinkeby": {
-            "node": "https://eth-rinkeby.alchemyapi.io/v2/",
+            "node": "https://rinkeby.infura.io/v3/",
             "explorer": "https://rinkeby.etherscan.io/",
             "chainId": 4
         },
