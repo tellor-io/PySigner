@@ -9,7 +9,7 @@ A python library + script for requesting, standardizing, and signing price feeds
 ### Python Dependencies
 
 Required packages can be installed with `pipenv install`.
-Refer (here)[https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv] for `pipenv` installation instructions if you do not have `pipenv` preinstalled.
+Refer [here](https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv) for `pipenv` installation instructions if you do not have `pipenv` preinstalled.
 
 ### Environment variables
 

@@ -1,4 +1,6 @@
-import argparse, json, os
+import argparse
+import json
+import os
 
 from dotenv import load_dotenv, find_dotenv
 import telebot
@@ -8,20 +10,25 @@ from web3.middleware import geth_poa_middleware
 load_dotenv(find_dotenv())
 
 with open('abi.json') as f:
-	abi = f.read()
-	f.close()
+    abi = f.read()
 
 with open('config.json') as f:
-	config = json.loads(f.read())[0]
-	f.close()
+    config = json.loads(f.read())[0]
 
 with open('TellorMesosphere.json') as f:
-	abi = f.read()
+    abi = f.read()
 
 
-#Building CLI interface
-parser = argparse.ArgumentParser(description='Submit values to Tellor Mesosphere')
-parser.add_argument('-n', '--network', nargs=1, required=True, type=str, help="an EVM compatible network")
+# Building CLI interface
+parser = argparse.ArgumentParser(
+    description='Submit values to Tellor Mesosphere')
+parser.add_argument(
+    '-n',
+    '--network',
+    nargs=1,
+    required=True,
+    type=str,
+    help="an EVM compatible network")
 args = parser.parse_args()
 network = args.network[0]
 
@@ -36,16 +43,16 @@ private_key = os.getenv("PRIVATEKEY")
 myName = "Tellor"
 w3 = Web3(Web3.HTTPProvider(node))
 
-#Choose network from CLI flag
+# Choose network from CLI flag
 if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
-	w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 mesosphere = w3.eth.contract(
-	Web3.toChecksumAddress(contract_address),
-	abi = abi
+    Web3.toChecksumAddress(contract_address),
+    abi=abi
 )
 
 acc = w3.eth.default_account = w3.eth.account.from_key(private_key)
 precision = 1e6
 
-print('your address', acc.address)
-print('your balance', w3.eth.get_balance(acc.address))
+print('your address:', acc.address)
+print('your balance:', w3.eth.get_balance(acc.address))
