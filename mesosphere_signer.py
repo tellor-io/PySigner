@@ -12,9 +12,6 @@ from web3.middleware import geth_poa_middleware
 
 load_dotenv(find_dotenv())
 
-with open('abi.json') as f:
-    abi = f.read()
-
 with open('config.json') as f:
     config = json.loads(f.read())[0]
 
