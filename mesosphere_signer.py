@@ -216,7 +216,7 @@ def TellorSignerMain():
         except BaseException:
             if not alert_sent:
                 tb = traceback.format_exc()
-                bot.send_message(str(tb))
+                bot.send_message(os.getenv("CHAT_ID"), str(tb))
                 alert_sent = True
         for asset in assets:
             try:
@@ -247,7 +247,7 @@ def TellorSignerMain():
                 if not alert_sent:
                     tb = traceback.format_exc()
                     breakpoint()
-                    bot.send_message(str(tb))
+                    bot.send_message(os.getenv("CHAT_ID"), str(tb))
                     alert_sent = True
             try:
                 tx_hash = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
