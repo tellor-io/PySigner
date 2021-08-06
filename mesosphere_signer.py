@@ -253,7 +253,9 @@ def TellorSignerMain():
                     alert_sent = True
             try:
                 tx_hash = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-                tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+                tx_receipt = w3.eth.wait_for_transaction_receipt(
+                    transaction_hash=tx_hash,
+                    timeout=360)
                 print('tx sent')
             except ValueError as e:
                 traceback.print_exc()
