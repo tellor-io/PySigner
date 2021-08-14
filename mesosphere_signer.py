@@ -248,7 +248,6 @@ def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price
 
 def TellorSignerMain() -> NoReturn:
     prev_alert = ''
-    _ = bot_alert('starting mesosphere signer', prev_alert)
     while True:
         try:
             assets = update_assets()
@@ -299,6 +298,7 @@ def TellorSignerMain() -> NoReturn:
                             print('timeout error')
                             extra_gp += 50.
                             print('increased gas price by 50')
+                            prev_alert = bot_alert(msg, prev_alert)
                             continue
 
                         # reduce gas price if over threshold
@@ -320,6 +320,7 @@ def TellorSignerMain() -> NoReturn:
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
                             print(err_msg)
+                            prev_alert = bot_alert(msg, prev_alert)
                             break
 
                         else:
