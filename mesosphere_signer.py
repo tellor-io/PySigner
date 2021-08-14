@@ -20,7 +20,7 @@ with open('config.json') as f:
 with open('TellorMesosphere.json') as f:
     abi = f.read()
 
-# Building CLI interface
+# build CLI interface
 parser = argparse.ArgumentParser(
     description='Submit values to Tellor Mesosphere')
 parser.add_argument(
@@ -39,31 +39,27 @@ if network == 'rinkeby':
 explorer = config['networks'][network]['explorer']
 chainId = config['networks'][network]['chainId']
 
-contract_address = config['address']
-
 bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-private_key = os.getenv("PRIVATEKEY")
-myName = "Tellor"
 w3 = Web3(Web3.HTTPProvider(node))
 
-# Choose network from CLI flag
+# choose network from CLI flag
 if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 mesosphere = w3.eth.contract(
-    Web3.toChecksumAddress(contract_address),
+    Web3.toChecksumAddress(config['address']),
     abi=abi
 )
-
-acc = w3.eth.default_account = w3.eth.account.from_key(private_key)
-precision = 1e6
-
+acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
 print('your address', acc.address)
 print('your balance', w3.eth.get_balance(acc.address))
-# BTC and ETH api endpoints from centralized exchanges
+
+PRECISION = 1e6
+
+# api endpoints from centralized exchanges
 # Each endpoint is encased in a list with the keywords that parse the JSON
 # to the last price
 
-btcAPIs = [
+BTC_APIS = [
     ["https://api.pro.coinbase.com/products/BTC-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", "bitcoin", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC", 'result', 'Last'],
@@ -72,7 +68,7 @@ btcAPIs = [
 
 ]
 
-wbtcAPIs = [
+WBTC_APIS = [
     ["https://api.pro.coinbase.com/products/WBTC-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-WBTC", 'result', 'Last'],
@@ -80,7 +76,7 @@ wbtcAPIs = [
 
 ]
 
-ethAPIs = [
+ETH_APIS = [
     ["https://api.pro.coinbase.com/products/ETH-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", "ethereum", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH", 'result', 'Last'],
@@ -88,7 +84,7 @@ ethAPIs = [
     ["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
 ]
 
-daiAPIs = [
+DAI_APIS = [
     ["https://api.pro.coinbase.com/products/DAI-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "dai", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI", 'result', 'Last'],
@@ -151,20 +147,8 @@ eth_in_dai = {
     "timeLastPushed": 0
 }
 
-# final data submission format
 
-submitData = {
-    # "starkKey":0,
-    "timestamp": 0,
-    "price": 0,
-    "assetName": 0,  # btc or eth
-    "oracleName": 0,
-    # "signatureR":0,
-    # "signatureS":0
-}
-
-
-def fetchAPI(public_api: List) -> float:
+def get_price(public_api: List) -> float:
     '''
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
@@ -190,34 +174,33 @@ def fetchAPI(public_api: List) -> float:
         print('API ERROR', public_api[0])
 
 
-def getAPIValues() -> List:
+def update_assets() -> List:
     eth_in_dai["timestamp"] = int(time.time())
-    price = medianize(ethAPIs, daiAPIs)
+    price = medianize(ETH_APIS, DAI_APIS)
     eth_in_dai["price"] = int(price)
+
     wbtc["timestamp"] = int(time.time())
 
     return [eth_in_dai, wbtc]
 
 
-def medianize(_ethAPIs: List, _daiAPIs: List) -> List[int]:
+def medianize(eth_apis: List, dai_apis: List) -> List[int]:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
-    finalRes = []
-    for i, j in zip(_ethAPIs, _daiAPIs):
-        _resETH = fetchAPI(i)
-        _resDAI = fetchAPI(j)
-        if _resETH == None:
-            continue
-        if _resDAI == None:
-            continue
-        if _resETH > 0 and _resDAI > 0:
-            # finalRes.append(int(int(_resETH*(precision)) / int(_resDAI*(precision)))*precision)
-            finalRes.append(int((_resETH / _resDAI) * precision))
+    prices = []
+    for i, j in zip(eth_apis, dai_apis):
+        eth_price = get_price(i)
+        dai_price = get_price(j)
 
-    # sort final results
-    finalRes.sort()
-    return finalRes[int(len(finalRes) / 2)]
+        if eth_price == None or dai_price == None:
+            continue
+
+        if eth_price > 0 and dai_price > 0:
+            prices.append(int((eth_price / dai_price) * PRECISION))
+
+    prices.sort()
+    return prices[int(len(prices) / 2)]
 
 
 def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price: float) -> Dict:
@@ -252,7 +235,7 @@ def TellorSignerMain():
     while True:
         try:
             alert_sent = False
-            assets = getAPIValues()
+            assets = update_assets()
 
             nonce = w3.eth.get_transaction_count(acc.address)
 
@@ -291,17 +274,13 @@ def TellorSignerMain():
                             print('got tx hash')
 
                             _ = w3.eth.wait_for_transaction_receipt(
-                                tx_hash, timeout=360) # change back to 360
+                                tx_hash, timeout=360)
                             print('got tx receipt, tx sent')
                             nonce += 1
                     except Exception as e:
                         print(e)
                         # traceback.print_exc()
                         tb = str(traceback.format_exc())
-
-                        # if not alert_sent:
-                            # bot.send_message(os.getenv("CHAT_ID"), tb)
-                            # alert_sent = True
 
                         # increase gas price if transaction timeout
                         if 'timeout' in tb:
@@ -323,7 +302,6 @@ def TellorSignerMain():
                             print('increasing gas price')
                             extra_gp += 50.
 
-                        # what if the error message says 'already known'?
                         # nonce already used, leave while loop
                         if 'already known' in err_msg:
                             print(err_msg)
