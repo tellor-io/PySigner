@@ -207,13 +207,9 @@ def medianize(_ethAPIs: List, _daiAPIs: List) -> List[int]:
     for i, j in zip(_ethAPIs, _daiAPIs):
         _resETH = fetchAPI(i)
         _resDAI = fetchAPI(j)
-        if not _resETH:
+        if _resETH == None:
             continue
-        if not _resDAI:
-            continue
-        if _resETH is None:
-            continue
-        if _resDAI is None:
+        if _resDAI == None:
             continue
         if _resETH > 0 and _resDAI > 0:
             # finalRes.append(int(int(_resETH*(precision)) / int(_resDAI*(precision)))*precision)
