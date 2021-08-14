@@ -5,12 +5,13 @@ import requests
 import time
 import traceback
 
-from typing import Dict, List
+from typing import Dict, List, NoReturn, Union
 
 from dotenv import load_dotenv, find_dotenv
 import telebot
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
+
 
 load_dotenv(find_dotenv())
 
@@ -39,7 +40,6 @@ if network == 'rinkeby':
 explorer = config['networks'][network]['explorer']
 chainId = config['networks'][network]['chainId']
 
-bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 w3 = Web3(Web3.HTTPProvider(node))
 
 # choose network from CLI flag
@@ -52,6 +52,8 @@ mesosphere = w3.eth.contract(
 acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
 print('your address', acc.address)
 print('your balance', w3.eth.get_balance(acc.address))
+
+bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 
 PRECISION = 1e6
 
@@ -148,7 +150,14 @@ eth_in_dai = {
 }
 
 
-def get_price(public_api: List) -> float:
+def bot_alert(msg: str, prev_msg: str) -> str:
+    message = f'from: {os.getenv("BOT_NAME")}\n' + msg
+    if message != prev_msg:
+        bot.send_message(os.getenv("CHAT_ID"), message)
+    return message
+
+
+def get_price(public_api: List[Union[str, int]]) -> float:
     '''
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
@@ -170,11 +179,15 @@ def get_price(public_api: List) -> float:
         # return price (last remaining element of the json)
         price = json_
         return float(price)
-    except BaseException:
-        print('API ERROR', public_api[0])
+
+    except Exception as e:
+        api_err_msg = f'API ERROR {public_api[0]}\n'
+        tb = str(traceback.format_exc())
+        msg = api_err_msg + str(e) + '\n' + tb
+        print(msg)
 
 
-def update_assets() -> List:
+def update_assets() -> List[Dict]:
     eth_in_dai["timestamp"] = int(time.time())
     price = medianize(ETH_APIS, DAI_APIS)
     eth_in_dai["price"] = int(price)
@@ -184,7 +197,7 @@ def update_assets() -> List:
     return [eth_in_dai, wbtc]
 
 
-def medianize(eth_apis: List, dai_apis: List) -> List[int]:
+def medianize(eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) -> List[int]:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
@@ -210,8 +223,10 @@ def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price
             new_gas_price = str(r['standard'])
             print('retrieved gas price:', new_gas_price)
         except Exception as e:
-            print('unable to retrieve gas price, using fallback:', '10')
-            print(e)
+            fallback_msg = 'unable to retrieve gas price, using fallback: 10\n'
+            tb = str(traceback.format_exc())
+            msg = fallback_msg + str(e) + '\n' + tb
+            print(msg)
             new_gas_price = '10'
 
     new_gas_price = str(float(new_gas_price) + extra_gas_price)
@@ -231,10 +246,11 @@ def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price
     return transaction
 
 
-def TellorSignerMain():
+def TellorSignerMain() -> NoReturn:
+    prev_alert = ''
+    _ = bot_alert('starting mesosphere signer', prev_alert)
     while True:
         try:
-            alert_sent = False
             assets = update_assets()
 
             nonce = w3.eth.get_transaction_count(acc.address)
@@ -243,14 +259,9 @@ def TellorSignerMain():
                 print('nonce:', nonce)
 
                 # if signer balance is less than half an ether, send alert
-                if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
-                    bot.send_message(
-                            os.getenv("CHAT_ID"),
-                            f'''warning: signer balance now below .5 ETH
-					\nCheck {explorer}/address/''' + acc.address)
-                    alert_sent = True
-                else:
-                    alert_sent = False
+                if (w3.eth.get_balance(acc.address) < 5E14):
+                    msg = f'warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}'
+                    prev_alert = bot_alert(msg, prev_alert)
 
                 extra_gp = 0.  # added to gas price to speed up tx if gas price too low
 
@@ -278,9 +289,10 @@ def TellorSignerMain():
                             print('got tx receipt, tx sent')
                             nonce += 1
                     except Exception as e:
-                        print(e)
                         # traceback.print_exc()
                         tb = str(traceback.format_exc())
+                        msg = str(e) + '\n'
+                        err_msg = str(e.args)
 
                         # increase gas price if transaction timeout
                         if 'timeout' in tb:
@@ -289,23 +301,31 @@ def TellorSignerMain():
                             print('increased gas price by 50')
                             continue
 
-                        err_msg = str(e.args)
-
                         # reduce gas price if over threshold
-                        if 'exceeds the configured cap' in err_msg:
+                        elif 'exceeds the configured cap' in err_msg:
                             print(err_msg)
                             print('reducing gas price')
                             extra_gp = 0.
                         
-                        if 'replacement transaction underpriced' in err_msg:
+                        elif 'replacement transaction underpriced' in err_msg:
                             print(err_msg)
                             print('increasing gas price')
                             extra_gp += 50.
 
+                        elif 'nonce too low' in err_msg:
+                            print(err_msg)
+                            print('increasing nonce')
+                            nonce += 1
+
                         # nonce already used, leave while loop
-                        if 'already known' in err_msg:
+                        elif 'already known' in err_msg:
                             print(err_msg)
                             break
+
+                        else:
+                            msg += tb # append traceback to alert if unknown error
+
+                        prev_alert = bot_alert(msg, prev_alert)
 
                         continue
 
@@ -322,18 +342,14 @@ def TellorSignerMain():
                 time.sleep(20)
 
                 if w3.eth.get_balance(acc.address) < 0.005 * 1E18:
-                    bot.send_message(
-                            os.getenv("CHAT_ID"),
-                            f'''urgent: signer ran out out of ETH"
-					\nCheck {explorer}/address/{acc.address}''')
+                    msg = f'urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}'
+                    prev_alert = bot_alert(msg, prev_alert)
                     time.sleep(60 * 15)
 
-        except BaseException:
-            traceback.print_exc()
-            if not alert_sent:
-                tb = traceback.format_exc()
-                bot.send_message(os.getenv("CHAT_ID"), str(tb))
-                alert_sent = True
+        except Exception as e:
+            tb = str(traceback.format_exc())
+            msg = str(e) + '\n' + tb
+            prev_alert = bot_alert(msg, prev_alert)
             continue
 
 
