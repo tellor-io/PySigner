@@ -5,6 +5,8 @@ import requests
 import time
 import traceback
 
+from typing import Dict, List
+
 from dotenv import load_dotenv, find_dotenv
 import telebot
 from web3 import Web3
@@ -162,7 +164,7 @@ submitData = {
 }
 
 
-def fetchAPI(public_api):
+def fetchAPI(public_api: List) -> float:
     '''
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
@@ -185,11 +187,10 @@ def fetchAPI(public_api):
         price = json_
         return float(price)
     except BaseException:
-        response = 0
         print('API ERROR', public_api[0])
 
 
-def getAPIValues():
+def getAPIValues() -> List:
     eth_in_dai["timestamp"] = int(time.time())
     price = medianize(ethAPIs, daiAPIs)
     eth_in_dai["price"] = int(price)
@@ -198,7 +199,7 @@ def getAPIValues():
     return [eth_in_dai, wbtc]
 
 
-def medianize(_ethAPIs, _daiAPIs):
+def medianize(_ethAPIs: List, _daiAPIs: List) -> List[int]:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
@@ -223,7 +224,7 @@ def medianize(_ethAPIs, _daiAPIs):
     return finalRes[int(len(finalRes) / 2)]
 
 
-def build_tx(an_asset, new_nonce, new_gas_price, extra_gas_price):
+def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price: float) -> Dict:
     if new_gas_price == None:
         try:
             r = requests.get('https://gasstation-mainnet.matic.network').json()
