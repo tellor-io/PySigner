@@ -72,7 +72,7 @@ BTC_APIS = [
 
 WBTC_APIS = [
     ["https://api.pro.coinbase.com/products/WBTC-USD/ticker", "price"],
-    ["https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd", "usd"],
+    ["https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd", "wrapped-bitcoin", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-WBTC", 'result', 'Last'],
     ["https://api.kraken.com/0/public/Ticker?pair=WBTCUSD", 'result', "WBTCUSD", 'c', 0]
 
@@ -190,15 +190,18 @@ def get_price(public_api: List[Union[str, int]]) -> float:
 
 def update_assets() -> List[Dict]:
     eth_in_dai["timestamp"] = int(time.time())
-    price = medianize(ETH_APIS, DAI_APIS)
-    eth_in_dai["price"] = int(price)
+    eth_dai_price = medianize_eth_dai(ETH_APIS, DAI_APIS)
+    eth_in_dai["price"] = int(eth_dai_price)
 
     wbtc["timestamp"] = int(time.time())
+    wbtc_price = medianize_wbtc(WBTC_APIS)
+    wbtc["price"] = wbtc_price
 
     return [eth_in_dai, wbtc]
 
 
-def medianize(eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) -> List[int]:
+def medianize_eth_dai(
+        eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) -> int:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
@@ -207,18 +210,37 @@ def medianize(eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) 
         eth_price = get_price(i)
         dai_price = get_price(j)
 
-        if eth_price == None or dai_price == None:
+        if eth_price is None or dai_price is None:
             continue
 
         if eth_price > 0 and dai_price > 0:
-            prices.append(int((eth_price / dai_price) * PRECISION))
+            prices.append((eth_price / dai_price) * PRECISION)
 
     prices.sort()
-    return prices[int(len(prices) / 2)]
+    return int(prices[int(len(prices) / 2)])
 
 
-def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price: float) -> Dict:
-    if new_gas_price == None:
+def medianize_wbtc(wbtc_apis: List[Union[str, int]]) -> int:
+    prices = []
+    for api in wbtc_apis:
+        wbtc_price = get_price(api)
+
+        if wbtc_price is None:
+            continue
+
+        if wbtc_price > 0:
+            prices.append(wbtc_price)
+
+    prices.sort()
+    return int(prices[int(len(prices) / 2)])
+
+
+def build_tx(
+        an_asset: Dict,
+        new_nonce: int,
+        new_gas_price: str,
+        extra_gas_price: float) -> Dict:
+    if new_gas_price is None:
         try:
             r = requests.get('https://gasstation-mainnet.matic.network').json()
             new_gas_price = str(r['standard'])
@@ -242,7 +264,7 @@ def build_tx(an_asset: Dict, new_nonce: int, new_gas_price: str, extra_gas_price
                 new_gas_price,
                 'gwei'),
             'chainId': chainId})
-    
+
     print('gas price used:', new_gas_price)
     return transaction
 
@@ -305,7 +327,7 @@ def TellorSignerMain() -> NoReturn:
                         elif 'exceeds the configured cap' in err_msg:
                             msg += 'reducing gas price'
                             extra_gp = 0.
-                        
+
                         elif 'replacement transaction underpriced' in err_msg:
                             msg += 'increased gas price by 50'
                             extra_gp += 50.
@@ -321,7 +343,7 @@ def TellorSignerMain() -> NoReturn:
                             break
 
                         else:
-                            msg += tb # append traceback to alert if unknown error
+                            msg += tb  # append traceback to alert if unknown error
 
                         prev_alert = bot_alert(msg, prev_alert)
 
