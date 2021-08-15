@@ -151,6 +151,7 @@ eth_in_dai = {
 
 
 def bot_alert(msg: str, prev_msg: str) -> str:
+    print(msg)
     message = f'from: {os.getenv("BOT_NAME")}\n' + msg
     if message != prev_msg:
         bot.send_message(os.getenv("CHAT_ID"), message)
@@ -295,31 +296,27 @@ def TellorSignerMain() -> NoReturn:
 
                         # increase gas price if transaction timeout
                         if 'timeout' in tb:
-                            print('timeout error')
                             extra_gp += 50.
-                            print('increased gas price by 50')
+                            msg += 'increased gas price by 50'
                             prev_alert = bot_alert(msg, prev_alert)
                             continue
 
                         # reduce gas price if over threshold
                         elif 'exceeds the configured cap' in err_msg:
-                            print(err_msg)
-                            print('reducing gas price')
+                            msg += 'reducing gas price'
                             extra_gp = 0.
                         
                         elif 'replacement transaction underpriced' in err_msg:
-                            print(err_msg)
-                            print('increasing gas price')
+                            msg += 'increased gas price by 50'
                             extra_gp += 50.
 
                         elif 'nonce too low' in err_msg:
-                            print(err_msg)
-                            print('increasing nonce')
+                            msg += 'increasing nonce'
                             nonce += 1
 
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
-                            print(err_msg)
+                            msg += f'skipping asset: {asset["asset"]}'
                             prev_alert = bot_alert(msg, prev_alert)
                             break
 
