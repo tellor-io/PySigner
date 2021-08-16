@@ -325,7 +325,6 @@ def TellorSignerMain() -> NoReturn:
                         if 'timeout' in tb:
                             extra_gp += 50.
                             msg += 'increased gas price by 50'
-                            prev_alert = bot_alert(msg, prev_alert, asset)
                             continue
 
                         # reduce gas price if over threshold
@@ -344,13 +343,11 @@ def TellorSignerMain() -> NoReturn:
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
                             msg += f'skipping asset: {asset["asset"]}'
-                            prev_alert = bot_alert(msg, prev_alert, asset)
                             break
 
                         else:
-                            msg += tb  # append traceback to alert if unknown error
-
-                        prev_alert = bot_alert(msg, prev_alert, asset)
+                            msg = 'UNKNOWN ERROR\n' + msg + tb  # append traceback to alert if unknown error
+                            prev_alert = bot_alert(msg, prev_alert, asset)
 
                         continue
 
