@@ -150,9 +150,12 @@ eth_in_dai = {
 }
 
 
-def bot_alert(msg: str, prev_msg: str) -> str:
+def bot_alert(msg: str, prev_msg: str, asset: Dict) -> str:
     print(msg)
-    message = f'from: {os.getenv("BOT_NAME")}\n' + msg
+    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}' + msg
+    message = f'network: {network}\n' + message
+    message = f'owner pub key: {acc.address[:6]}...\n' + message
+    message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
     if message != prev_msg:
         bot.send_message(os.getenv("CHAT_ID"), message)
     return message
@@ -229,7 +232,7 @@ def medianize_wbtc(wbtc_apis: List[Union[str, int]]) -> int:
             continue
 
         if wbtc_price > 0:
-            prices.append(wbtc_price)
+            prices.append(wbtc_price * PRECISION)
 
     prices.sort()
     return int(prices[int(len(prices) / 2)])
@@ -271,6 +274,7 @@ def build_tx(
 
 def TellorSignerMain() -> NoReturn:
     prev_alert = ''
+    current_asset = None
     while True:
         try:
             assets = update_assets()
@@ -278,12 +282,13 @@ def TellorSignerMain() -> NoReturn:
             nonce = w3.eth.get_transaction_count(acc.address)
 
             for asset in assets:
+                current_asset = asset
                 print('nonce:', nonce)
 
                 # if signer balance is less than half an ether, send alert
                 if (w3.eth.get_balance(acc.address) < 5E14):
                     msg = f'warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}'
-                    prev_alert = bot_alert(msg, prev_alert)
+                    prev_alert = bot_alert(msg, prev_alert, asset)
 
                 extra_gp = 0.  # added to gas price to speed up tx if gas price too low
 
@@ -320,7 +325,7 @@ def TellorSignerMain() -> NoReturn:
                         if 'timeout' in tb:
                             extra_gp += 50.
                             msg += 'increased gas price by 50'
-                            prev_alert = bot_alert(msg, prev_alert)
+                            prev_alert = bot_alert(msg, prev_alert, asset)
                             continue
 
                         # reduce gas price if over threshold
@@ -339,13 +344,13 @@ def TellorSignerMain() -> NoReturn:
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
                             msg += f'skipping asset: {asset["asset"]}'
-                            prev_alert = bot_alert(msg, prev_alert)
+                            prev_alert = bot_alert(msg, prev_alert, asset)
                             break
 
                         else:
                             msg += tb  # append traceback to alert if unknown error
 
-                        prev_alert = bot_alert(msg, prev_alert)
+                        prev_alert = bot_alert(msg, prev_alert, asset)
 
                         continue
 
@@ -363,13 +368,13 @@ def TellorSignerMain() -> NoReturn:
 
                 if w3.eth.get_balance(acc.address) < 0.005 * 1E18:
                     msg = f'urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}'
-                    prev_alert = bot_alert(msg, prev_alert)
+                    prev_alert = bot_alert(msg, prev_alert, asset)
                     time.sleep(60 * 15)
 
         except Exception as e:
             tb = str(traceback.format_exc())
             msg = str(e) + '\n' + tb
-            prev_alert = bot_alert(msg, prev_alert)
+            prev_alert = bot_alert(msg, prev_alert, current_asset)
             continue
 
 
