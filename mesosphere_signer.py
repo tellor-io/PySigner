@@ -152,7 +152,7 @@ eth_in_dai = {
 
 def bot_alert(msg: str, prev_msg: str, asset: Dict) -> str:
     print(msg)
-    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}' + msg
+    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}\n' + msg
     message = f'network: {network}\n' + message
     message = f'owner pub key: {acc.address[:6]}...\n' + message
     message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
@@ -325,7 +325,6 @@ def TellorSignerMain() -> NoReturn:
                         if 'timeout' in tb:
                             extra_gp += 50.
                             msg += 'increased gas price by 50'
-                            prev_alert = bot_alert(msg, prev_alert, asset)
                             continue
 
                         # reduce gas price if over threshold
@@ -340,17 +339,19 @@ def TellorSignerMain() -> NoReturn:
                         elif 'nonce too low' in err_msg:
                             msg += 'increasing nonce'
                             nonce += 1
+                        
+                        elif 'insufficient funds' in err_msg:
+                            msg += f'Check {explorer}/address/{acc.address}\n'
+                            prev_alert = bot_alert(msg, prev_alert, asset)
 
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
                             msg += f'skipping asset: {asset["asset"]}'
-                            prev_alert = bot_alert(msg, prev_alert, asset)
                             break
 
                         else:
-                            msg += tb  # append traceback to alert if unknown error
-
-                        prev_alert = bot_alert(msg, prev_alert, asset)
+                            msg = 'UNKNOWN ERROR\n' + msg + tb  # append traceback to alert if unknown error
+                            prev_alert = bot_alert(msg, prev_alert, asset)
 
                         continue
 
