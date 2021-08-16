@@ -339,6 +339,10 @@ def TellorSignerMain() -> NoReturn:
                         elif 'nonce too low' in err_msg:
                             msg += 'increasing nonce'
                             nonce += 1
+                        
+                        elif 'insufficient funds' in err_msg:
+                            msg += f'Check {explorer}/address/{acc.address}\n'
+                            prev_alert = bot_alert(msg, prev_alert, asset)
 
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
