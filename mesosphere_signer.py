@@ -5,15 +5,15 @@ import requests
 import time
 import traceback
 
+from typing import Dict, List, NoReturn, Union
+
 from dotenv import load_dotenv, find_dotenv
 import telebot
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
-load_dotenv(find_dotenv())
 
-with open('abi.json') as f:
-    abi = f.read()
+load_dotenv(find_dotenv())
 
 with open('config.json') as f:
     config = json.loads(f.read())[0]
@@ -21,8 +21,7 @@ with open('config.json') as f:
 with open('TellorMesosphere.json') as f:
     abi = f.read()
 
-
-# Building CLI interface
+# build CLI interface
 parser = argparse.ArgumentParser(
     description='Submit values to Tellor Mesosphere')
 parser.add_argument(
@@ -41,31 +40,28 @@ if network == 'rinkeby':
 explorer = config['networks'][network]['explorer']
 chainId = config['networks'][network]['chainId']
 
-contract_address = config['address']
-
-bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-private_key = os.getenv("PRIVATEKEY")
-myName = "Tellor"
 w3 = Web3(Web3.HTTPProvider(node))
 
-# Choose network from CLI flag
+# choose network from CLI flag
 if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 mesosphere = w3.eth.contract(
-    Web3.toChecksumAddress(contract_address),
+    Web3.toChecksumAddress(config['address']),
     abi=abi
 )
-
-acc = w3.eth.default_account = w3.eth.account.from_key(private_key)
-precision = 1e6
-
+acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
 print('your address', acc.address)
 print('your balance', w3.eth.get_balance(acc.address))
-# BTC and ETH api endpoints from centralized exchanges
+
+bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
+
+PRECISION = 1e6
+
+# api endpoints from centralized exchanges
 # Each endpoint is encased in a list with the keywords that parse the JSON
 # to the last price
 
-btcAPIs = [
+BTC_APIS = [
     ["https://api.pro.coinbase.com/products/BTC-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", "bitcoin", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC", 'result', 'Last'],
@@ -74,7 +70,15 @@ btcAPIs = [
 
 ]
 
-ethAPIs = [
+WBTC_APIS = [
+    ["https://api.pro.coinbase.com/products/WBTC-USD/ticker", "price"],
+    ["https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd", "wrapped-bitcoin", "usd"],
+    ["https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-WBTC", 'result', 'Last'],
+    ["https://api.kraken.com/0/public/Ticker?pair=WBTCUSD", 'result', "WBTCUSD", 'c', 0]
+
+]
+
+ETH_APIS = [
     ["https://api.pro.coinbase.com/products/ETH-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", "ethereum", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH", 'result', 'Last'],
@@ -82,7 +86,7 @@ ethAPIs = [
     ["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
 ]
 
-daiAPIs = [
+DAI_APIS = [
     ["https://api.pro.coinbase.com/products/DAI-USD/ticker", "price"],
     ["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "dai", "usd"],
     ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI", 'result', 'Last'],
@@ -104,6 +108,17 @@ btc = {
     "lastPushedPrice": 0,
     "timeLastPushed": 0
 }
+
+wbtc = {
+    "requestId": 60,
+    "price": 0,
+    "asset": "WBTCUSD",
+    "strPrice": "",
+    "timestamp": 0,
+    "lastPushedPrice": 0,
+    "timeLastPushed": 0
+}
+
 eth = {
     "requestId": 1,
     "price": 0,
@@ -134,20 +149,16 @@ eth_in_dai = {
     "timeLastPushed": 0
 }
 
-# final data submission format
 
-submitData = {
-    # "starkKey":0,
-    "timestamp": 0,
-    "price": 0,
-    "assetName": 0,  # btc or eth
-    "oracleName": 0,
-    # "signatureR":0,
-    # "signatureS":0
-}
+def bot_alert(msg: str, prev_msg: str) -> str:
+    print(msg)
+    message = f'from: {os.getenv("BOT_NAME")}\n' + msg
+    if message != prev_msg:
+        bot.send_message(os.getenv("CHAT_ID"), message)
+    return message
 
 
-def fetchAPI(public_api):
+def get_price(public_api: List[Union[str, int]]) -> float:
     '''
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
@@ -169,113 +180,197 @@ def fetchAPI(public_api):
         # return price (last remaining element of the json)
         price = json_
         return float(price)
-    except BaseException:
-        response = 0
-        print('API ERROR', public_api[0])
+
+    except Exception as e:
+        api_err_msg = f'API ERROR {public_api[0]}\n'
+        tb = str(traceback.format_exc())
+        msg = api_err_msg + str(e) + '\n' + tb
+        print(msg)
 
 
-def getAPIValues():
+def update_assets() -> List[Dict]:
     eth_in_dai["timestamp"] = int(time.time())
-    price = medianize(ethAPIs, daiAPIs)
-    eth_in_dai["price"] = int(price)
+    eth_dai_price = medianize_eth_dai(ETH_APIS, DAI_APIS)
+    eth_in_dai["price"] = int(eth_dai_price)
 
-    return [eth_in_dai]
+    wbtc["timestamp"] = int(time.time())
+    wbtc_price = medianize_wbtc(WBTC_APIS)
+    wbtc["price"] = wbtc_price
+
+    return [eth_in_dai, wbtc]
 
 
-def medianize(_ethAPIs, _daiAPIs):
+def medianize_eth_dai(
+        eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) -> int:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
-    finalRes = []
-    didGet = False
-    n = 0
-    for i, j in zip(_ethAPIs, _daiAPIs):
-        _resETH = fetchAPI(i)
-        _resDAI = fetchAPI(j)
-        if not _resETH:
-            continue
-        if not _resDAI:
-            continue
-        if _resETH is None:
-            continue
-        if _resDAI is None:
-            continue
-        if _resETH > 0 and _resDAI > 0:
-            didGet = True
-            # finalRes.append(int(int(_resETH*(precision)) / int(_resDAI*(precision)))*precision)
-            finalRes.append(int((_resETH / _resDAI) * precision))
+    prices = []
+    for i, j in zip(eth_apis, dai_apis):
+        eth_price = get_price(i)
+        dai_price = get_price(j)
 
-    # sort final results
-    finalRes.sort()
-    return finalRes[int(len(finalRes) / 2)]
+        if eth_price is None or dai_price is None:
+            continue
+
+        if eth_price > 0 and dai_price > 0:
+            prices.append((eth_price / dai_price) * PRECISION)
+
+    prices.sort()
+    return int(prices[int(len(prices) / 2)])
 
 
-def TellorSignerMain():
-    while True:
-        alert_sent = False
+def medianize_wbtc(wbtc_apis: List[Union[str, int]]) -> int:
+    prices = []
+    for api in wbtc_apis:
+        wbtc_price = get_price(api)
+
+        if wbtc_price is None:
+            continue
+
+        if wbtc_price > 0:
+            prices.append(wbtc_price)
+
+    prices.sort()
+    return int(prices[int(len(prices) / 2)])
+
+
+def build_tx(
+        an_asset: Dict,
+        new_nonce: int,
+        new_gas_price: str,
+        extra_gas_price: float) -> Dict:
+    if new_gas_price is None:
         try:
-            assets = getAPIValues()
-        except BaseException:
-            if not alert_sent:
-                tb = traceback.format_exc()
-                bot.send_message(os.getenv("CHAT_ID"), str(tb))
-                alert_sent = True
-        for asset in assets:
-            try:
-                nonce = w3.eth.get_transaction_count(acc.address)
+            r = requests.get('https://gasstation-mainnet.matic.network').json()
+            new_gas_price = str(r['standard'])
+            print('retrieved gas price:', new_gas_price)
+        except Exception as e:
+            fallback_msg = 'unable to retrieve gas price, using fallback: 10\n'
+            tb = str(traceback.format_exc())
+            msg = fallback_msg + str(e) + '\n' + tb
+            print(msg)
+            new_gas_price = '10'
+
+    new_gas_price = str(float(new_gas_price) + extra_gas_price)
+
+    transaction = mesosphere.functions.submitValue(
+        an_asset['requestId'],
+        an_asset['price']).buildTransaction(
+        {
+            'nonce': new_nonce,
+            'gas': 4000000,
+            'gasPrice': w3.toWei(
+                new_gas_price,
+                'gwei'),
+            'chainId': chainId})
+
+    print('gas price used:', new_gas_price)
+    return transaction
+
+
+def TellorSignerMain() -> NoReturn:
+    prev_alert = ''
+    while True:
+        try:
+            assets = update_assets()
+
+            nonce = w3.eth.get_transaction_count(acc.address)
+
+            for asset in assets:
                 print('nonce:', nonce)
+
                 # if signer balance is less than half an ether, send alert
-                if (w3.eth.get_balance(acc.address) < 5E14) and ~alert_sent:
-                    bot.send_message(
-                        os.getenv("CHAT_ID"),
-                        f'''warning: signer balance now below .5 ETH
-					\nCheck {explorer}/address/''' + acc.address)
-                    alert_sent = True
-                else:
-                    alert_sent = False
-                if (asset["timestamp"] -
-                    asset["timeLastPushed"] > 5) or (abs(asset["price"] -
-                                                         asset["lastPushedPrice"]) > .05):
-                    tx = mesosphere.functions.submitValue(asset['requestId'], asset['price']).buildTransaction(
-                        {
-                            'nonce': nonce,
-                            'gas': 4000000,
-                            'gasPrice': w3.toWei('3', 'gwei'),
-                            'chainId': chainId
-                        }
-                    )
-                    tx_signed = w3.eth.default_account.sign_transaction(tx)
-            except BaseException:
-                if not alert_sent:
-                    tb = traceback.format_exc()
-                    breakpoint()
-                    bot.send_message(os.getenv("CHAT_ID"), str(tb))
-                    alert_sent = True
-            try:
-                tx_hash = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-                tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-                print('tx sent')
-            except ValueError as e:
-                traceback.print_exc()
-                nonce += 1
-                break
-            try:
+                if (w3.eth.get_balance(acc.address) < 5E14):
+                    msg = f'warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}'
+                    prev_alert = bot_alert(msg, prev_alert)
+
+                extra_gp = 0.  # added to gas price to speed up tx if gas price too low
+
+                while True:
+                    try:
+                        if (asset["timestamp"] - asset["timeLastPushed"] > 5) or \
+                                (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
+                            tx = build_tx(
+                                asset,
+                                nonce,
+                                new_gas_price='3',
+                                extra_gas_price=extra_gp)
+                            print('tx built')
+
+                            tx_signed = w3.eth.default_account.sign_transaction(
+                                tx)
+                            print('tx signed')
+
+                            tx_hash = w3.eth.send_raw_transaction(
+                                tx_signed.rawTransaction)
+                            print('got tx hash')
+
+                            _ = w3.eth.wait_for_transaction_receipt(
+                                tx_hash, timeout=360)
+                            print('got tx receipt, tx sent')
+                            nonce += 1
+                    except Exception as e:
+                        # traceback.print_exc()
+                        tb = str(traceback.format_exc())
+                        msg = str(e) + '\n'
+                        err_msg = str(e.args)
+
+                        # increase gas price if transaction timeout
+                        if 'timeout' in tb:
+                            extra_gp += 50.
+                            msg += 'increased gas price by 50'
+                            prev_alert = bot_alert(msg, prev_alert)
+                            continue
+
+                        # reduce gas price if over threshold
+                        elif 'exceeds the configured cap' in err_msg:
+                            msg += 'reducing gas price'
+                            extra_gp = 0.
+
+                        elif 'replacement transaction underpriced' in err_msg:
+                            msg += 'increased gas price by 50'
+                            extra_gp += 50.
+
+                        elif 'nonce too low' in err_msg:
+                            msg += 'increasing nonce'
+                            nonce += 1
+
+                        # nonce already used, leave while loop
+                        elif 'already known' in err_msg:
+                            msg += f'skipping asset: {asset["asset"]}'
+                            prev_alert = bot_alert(msg, prev_alert)
+                            break
+
+                        else:
+                            msg += tb  # append traceback to alert if unknown error
+
+                        prev_alert = bot_alert(msg, prev_alert)
+
+                        continue
+
+                    break  # exit while loop if tx sent
+
                 print('asset:', asset['asset'])
                 print('asset price:', asset['price'])
 
                 asset["lastPushedPrice"] = asset["price"]
                 asset["timeLastPushed"] = asset["timestamp"]
-                nonce += 1
-                print("waiting to submit....")
+
+                print("sleeping...")
+                # wait because contract only writes new values every 60 seconds
                 time.sleep(20)
-            except BaseException:
-                nonce += 1
+
                 if w3.eth.get_balance(acc.address) < 0.005 * 1E18:
-                    bot.send_message(
-                        os.getenv("CHAT_ID"),
-                        f'''urgent: signer ran out out of ETH"
-					\nCheck {explorer}/address/{acc.address}''')
+                    msg = f'urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}'
+                    prev_alert = bot_alert(msg, prev_alert)
                     time.sleep(60 * 15)
+
+        except Exception as e:
+            tb = str(traceback.format_exc())
+            msg = str(e) + '\n' + tb
+            prev_alert = bot_alert(msg, prev_alert)
+            continue
 
 
 TellorSignerMain()
