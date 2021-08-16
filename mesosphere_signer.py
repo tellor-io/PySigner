@@ -152,7 +152,7 @@ eth_in_dai = {
 
 def bot_alert(msg: str, prev_msg: str, asset: Dict) -> str:
     print(msg)
-    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}' + msg
+    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}\n' + msg
     message = f'network: {network}\n' + message
     message = f'owner pub key: {acc.address[:6]}...\n' + message
     message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
