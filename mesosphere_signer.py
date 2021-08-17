@@ -30,9 +30,25 @@ parser.add_argument(
     nargs=1,
     required=True,
     type=str,
-    help="an EVM compatible network")
+    help="An EVM compatible network.")
+parser.add_argument(
+    '-gp',
+    '--gasprice',
+    nargs=1,
+    required=False,
+    type=str,
+    help="The gas price used for transactions. If no gas price is set, it is retrieved from https://gasstation-mainnet.matic.network.")
+parser.add_argument(
+    '-egp',
+    '--extra-gasprice',
+    nargs=1,
+    required=False,
+    type=str,
+    help="Extra gwei added to gas price if gas price too low.")
 args = parser.parse_args()
 network = args.network[0]
+gas_price = args.gasprice[0] if args.gasprice else None
+error_gas_price = args.extra_gasprice if args.extra_gasprice else 50.
 
 node = config['networks'][network]['node']
 if network == 'rinkeby':
@@ -294,12 +310,15 @@ def TellorSignerMain() -> NoReturn:
 
                 while True:
                     try:
+                        if extra_gp >= 200.:
+                            break
+                        
                         if (asset["timestamp"] - asset["timeLastPushed"] > 5) or \
                                 (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
                             tx = build_tx(
                                 asset,
                                 nonce,
-                                new_gas_price='3',
+                                new_gas_price=gas_price,
                                 extra_gas_price=extra_gp)
                             print('tx built')
 
@@ -323,8 +342,8 @@ def TellorSignerMain() -> NoReturn:
 
                         # increase gas price if transaction timeout
                         if 'timeout' in tb:
-                            extra_gp += 50.
-                            msg += 'increased gas price by 50'
+                            extra_gp += error_gas_price
+                            msg += f'increased gas price by {error_gas_price} gwei'
                             continue
 
                         # reduce gas price if over threshold
@@ -333,8 +352,8 @@ def TellorSignerMain() -> NoReturn:
                             extra_gp = 0.
 
                         elif 'replacement transaction underpriced' in err_msg:
-                            msg += 'increased gas price by 50'
-                            extra_gp += 50.
+                            extra_gp += error_gas_price
+                            msg += f'increased gas price by {error_gas_price} gwei'
 
                         elif 'nonce too low' in err_msg:
                             msg += 'increasing nonce'
