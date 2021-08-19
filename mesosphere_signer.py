@@ -1,60 +1,80 @@
 import argparse
-import json
 import os
 import requests
+import sys
 import time
 import traceback
 
-from typing import Dict, List, NoReturn, Union
+from typing import Dict, List, NoReturn
 
+from box import Box
 from dotenv import load_dotenv, find_dotenv
 import telebot
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
+import yaml
 
 
 load_dotenv(find_dotenv())
 
-with open('config.json') as f:
-    config = json.loads(f.read())[0]
-
 with open('TellorMesosphere.json') as f:
     abi = f.read()
 
-# build CLI interface
-parser = argparse.ArgumentParser(
-    description='Submit values to Tellor Mesosphere')
-parser.add_argument(
-    '-n',
-    '--network',
-    nargs=1,
-    required=True,
-    type=str,
-    help="An EVM compatible network.")
-parser.add_argument(
-    '-gp',
-    '--gasprice',
-    nargs=1,
-    required=False,
-    type=str,
-    help="The gas price used for transactions. If no gas price is set, it is retrieved from https://gasstation-mainnet.matic.network.")
-parser.add_argument(
-    '-egp',
-    '--extra-gasprice',
-    nargs=1,
-    required=False,
-    type=str,
-    help="Extra gwei added to gas price if gas price too low.")
-args = parser.parse_args()
-network = args.network[0]
-gas_price = args.gasprice[0] if args.gasprice else None
-error_gas_price = float(args.extra_gasprice[0]) if args.extra_gasprice else 50.
+# configure signer
+def get_configs(args):
+    '''get all signer configurations from passed flags or yaml file'''
 
-node = config['networks'][network]['node']
+    # read in configurations from yaml file
+    with open("config.yml", "r") as ymlfile:
+        config = yaml.safe_load(ymlfile)
+    
+    # parse command line flags & arguments
+    parser = argparse.ArgumentParser(
+        description='Submit values to Tellor Mesosphere')
+    parser.add_argument(
+        '-n',
+        '--network',
+        nargs=1,
+        required=False,
+        type=str,
+        help="An EVM compatible network.")
+    parser.add_argument(
+        '-gp',
+        '--gasprice',
+        nargs=1,
+        required=False,
+        type=str,
+        help="The gas price used for transactions. If no gas price is set, it is retrieved from https://gasstation-mainnet.matic.network.")
+    parser.add_argument(
+        '-egp',
+        '--error-gasprice',
+        nargs=1,
+        required=False,
+        type=str,
+        help="Extra gwei added to gas price if gas price too low.")
+    
+    # get dict of parsed args
+    cli_cfg = vars(parser.parse_args(args))
+
+    # overwrite any configs from yaml file also given by user via cli
+    for flag, arg in cli_cfg.items():
+        if arg != None:
+            config[flag] = arg[0]
+
+    # enable dot notation for accessing configs
+    config = Box(config)
+    
+    return config
+
+cfg = get_configs(sys.argv[1:])
+
+network = cfg.network
+
+node = cfg.networks[network].node
 if network == 'rinkeby':
     node += os.getenv('INFURA_KEY')
-explorer = config['networks'][network]['explorer']
-chainId = config['networks'][network]['chainId']
+explorer = cfg.networks[network].explorer
+chain_id = cfg.networks[network].chain_id
 
 w3 = Web3(Web3.HTTPProvider(node))
 
@@ -62,7 +82,7 @@ w3 = Web3(Web3.HTTPProvider(node))
 if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 mesosphere = w3.eth.contract(
-    Web3.toChecksumAddress(config['address']),
+    Web3.toChecksumAddress(cfg.address),
     abi=abi
 )
 acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
@@ -72,46 +92,6 @@ print('your balance', w3.eth.get_balance(acc.address))
 bot = None
 if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
     bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-
-PRECISION = 1e6
-
-# api endpoints from centralized exchanges
-# Each endpoint is encased in a list with the keywords that parse the JSON
-# to the last price
-
-BTC_APIS = [
-    ["https://api.pro.coinbase.com/products/BTC-USD/ticker", "price"],
-    ["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", "bitcoin", "usd"],
-    ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC", 'result', 'Last'],
-    ["https://api.gemini.com/v1/pubticker/btcusd", 'last'],
-    ["https://api.kraken.com/0/public/Ticker?pair=TBTCUSD", 'result', "TBTCUSD", 'c', 0]
-
-]
-
-WBTC_APIS = [
-    ["https://api.pro.coinbase.com/products/WBTC-USD/ticker", "price"],
-    ["https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd", "wrapped-bitcoin", "usd"],
-    ["https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-WBTC", 'result', 'Last'],
-    ["https://api.kraken.com/0/public/Ticker?pair=WBTCUSD", 'result', "WBTCUSD", 'c', 0]
-
-]
-
-ETH_APIS = [
-    ["https://api.pro.coinbase.com/products/ETH-USD/ticker", "price"],
-    ["https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", "ethereum", "usd"],
-    ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH", 'result', 'Last'],
-    ["https://api.gemini.com/v1/pubticker/ethusd", 'last'],
-    ["https://api.kraken.com/0/public/Ticker?pair=ETHUSDC", 'result', "ETHUSDC", 'c', 0]
-]
-
-DAI_APIS = [
-    ["https://api.pro.coinbase.com/products/DAI-USD/ticker", "price"],
-    ["https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd", "dai", "usd"],
-    ["https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI", 'result', 'Last'],
-    ["https://api.gemini.com/v1/pubticker/daiusd", 'last'],
-    ["https://api.kraken.com/0/public/Ticker?pair=DAIUSD", 'result', "DAIUSD", 'c', 0]
-
-]
 
 # Asset is a helper class used to distinguish btc prices and eth prices
 # these are used for data wrangling, from centralized API endpoints to
@@ -126,6 +106,14 @@ class Asset:
         self.timestamp = 0
         self.last_pushed_price = 0 
         self.time_last_pushed = 0
+    
+    def __str__(self):
+        return f'''
+            Asset: {self.name}
+            \trequest_id: {self.request_id}
+            \tprice: {self.price}
+            \ttimestamp: {self.timestamp}
+            '''
 
 btc = Asset('BTCUSD', 2)
 wbtc = Asset('WBTCUSD', 60)
@@ -145,81 +133,76 @@ def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
     return message
 
 
-def get_price(public_api: List[Union[str, int]]) -> float:
+def get_price(api_info: Dict) -> float:
     '''
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
     Input: (list of str) public api endpoint with any necessary json parsing keywords
     '''
     try:
-        # Parse list input
-        endpoint = public_api[0]
-        parsers = public_api[1:]
-
         # Request JSON from public api endpoint
-        r = requests.get(endpoint)
-        json_ = r.json()
+        rsp = requests.get(api_info['url']).json()
 
         # Parse through json with pre-written keywords
-        for keyword in parsers:
-            json_ = json_[keyword]
+        for keyword in api_info['keywords']:
+            rsp = rsp[keyword]
 
         # return price (last remaining element of the json)
-        price = json_
-        return float(price)
+        price = float(rsp)
+        return price
 
     except Exception as e:
-        api_err_msg = f'API ERROR {public_api[0]}\n'
+        api_err_msg = f'API ERROR {api_info["url"]}\n'
         tb = str(traceback.format_exc())
         msg = api_err_msg + str(e) + '\n' + tb
         print(msg)
 
 
-def update_assets() -> List[Asset]:
-    eth_in_dai.timestamp = int(time.time())
-    eth_dai_price = medianize_eth_dai(ETH_APIS, DAI_APIS)
-    eth_in_dai.price = int(eth_dai_price)
-
-    wbtc.timestamp = int(time.time())
-    wbtc_price = medianize_wbtc(WBTC_APIS)
-    wbtc.price = wbtc_price
-
-    return [eth_in_dai, wbtc]
-
-
 def medianize_eth_dai(
-        eth_apis: List[Union[str, int]], dai_apis: List[Union[str, int]]) -> int:
+        eth_apis: Dict, dai_apis: Dict) -> int:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
     prices = []
-    for i, j in zip(eth_apis, dai_apis):
-        eth_price = get_price(i)
-        dai_price = get_price(j)
+    for name1, name2 in zip(sorted(list(eth_apis)), sorted(list(dai_apis))):
+        eth_price = get_price(eth_apis[name1])
+        dai_price = get_price(dai_apis[name2])
 
         if eth_price is None or dai_price is None:
             continue
 
         if eth_price > 0 and dai_price > 0:
-            prices.append((eth_price / dai_price) * PRECISION)
+            prices.append((eth_price / dai_price) * cfg.precision)
 
     prices.sort()
     return int(prices[int(len(prices) / 2)])
 
 
-def medianize_wbtc(wbtc_apis: List[Union[str, int]]) -> int:
+def medianize_wbtc(wbtc_apis: Dict) -> int:
     prices = []
-    for api in wbtc_apis:
-        wbtc_price = get_price(api)
+    for name in wbtc_apis:
+        wbtc_price = get_price(wbtc_apis[name])
 
         if wbtc_price is None:
             continue
 
         if wbtc_price > 0:
-            prices.append(wbtc_price * PRECISION)
+            prices.append(wbtc_price * cfg.precision)
 
     prices.sort()
     return int(prices[int(len(prices) / 2)])
+
+
+def update_assets() -> List[Asset]:
+    eth_in_dai.timestamp = int(time.time())
+    eth_dai_price = medianize_eth_dai(cfg.apis.eth, cfg.apis.dai)
+    eth_in_dai.price = int(eth_dai_price)
+
+    wbtc.timestamp = int(time.time())
+    wbtc_price = medianize_wbtc(cfg.apis.wbtc)
+    wbtc.price = wbtc_price
+
+    return [eth_in_dai, wbtc]
 
 
 def build_tx(
@@ -227,17 +210,6 @@ def build_tx(
         new_nonce: int,
         new_gas_price: str,
         extra_gas_price: float) -> Dict:
-    if new_gas_price is None:
-        try:
-            r = requests.get('https://gasstation-mainnet.matic.network').json()
-            new_gas_price = str(r['standard'])
-            print('retrieved gas price:', new_gas_price)
-        except Exception as e:
-            fallback_msg = 'unable to retrieve gas price, using fallback: 10\n'
-            tb = str(traceback.format_exc())
-            msg = fallback_msg + str(e) + '\n' + tb
-            print(msg)
-            new_gas_price = '10'
 
     new_gas_price = str(float(new_gas_price) + extra_gas_price)
 
@@ -250,7 +222,7 @@ def build_tx(
             'gasPrice': w3.toWei(
                 new_gas_price,
                 'gwei'),
-            'chainId': chainId})
+            'chainId': chain_id})
 
     print('gas price used:', new_gas_price)
     return transaction
@@ -278,7 +250,7 @@ def TellorSignerMain() -> NoReturn:
 
                 while True:
                     try:
-                        if extra_gp >= 200.:
+                        if extra_gp >= cfg.extra_gasprice_ceiling:
                             break
 
                         if (asset.timestamp - asset.time_last_pushed > 5) or \
@@ -286,7 +258,7 @@ def TellorSignerMain() -> NoReturn:
                             tx = build_tx(
                                 asset,
                                 nonce,
-                                new_gas_price=gas_price,
+                                new_gas_price=cfg.gasprice,
                                 extra_gas_price=extra_gp)
                             print('tx built')
 
@@ -310,8 +282,8 @@ def TellorSignerMain() -> NoReturn:
 
                         # increase gas price if transaction timeout
                         if 'timeout' in tb:
-                            extra_gp += error_gas_price
-                            msg += f'increased gas price by {error_gas_price} gwei'
+                            extra_gp += cfg.error_gasprice
+                            msg += f'increased gas price by {cfg.error_gasprice} gwei'
                             continue
 
                         # reduce gas price if over threshold
@@ -320,8 +292,8 @@ def TellorSignerMain() -> NoReturn:
                             extra_gp = 0.
 
                         elif 'replacement transaction underpriced' in err_msg:
-                            extra_gp += error_gas_price
-                            msg += f'increased gas price by {error_gas_price} gwei'
+                            extra_gp += cfg.error_gasprice
+                            msg += f'increased gas price by {cfg.error_gasprice} gwei'
 
                         elif 'nonce too low' in err_msg:
                             msg += 'increasing nonce'
@@ -340,15 +312,15 @@ def TellorSignerMain() -> NoReturn:
                         elif 'result' in err_msg:
                             msg += f'empty response from w3.eth.get_transaction_count(acc.address)'
                         
-                        # wait 20 sec if error getting nonce with get_transaction_count
+                        # wait if error getting nonce with get_transaction_count
                         elif 'RPC Error' in err_msg or 'RPCError' in err_msg:
                             msg += f'RPC Error from w3.eth.get_transaction_count(acc.address)'
-                            time.sleep(20)
+                            time.sleep(cfg.error_waittime)
                         
-                        # wait 20 sec if too may requests sent
+                        # wait if too may requests sent
                         elif 'https://rpc-mainnet.maticvigil.com/' in err_msg:
                             msg += f'too many requests in too little time. sleeping...'
-                            time.sleep(20)
+                            time.sleep(cfg.error_waittime)
 
                         else:
                             msg = 'UNKNOWN ERROR\n' + msg + tb  # append traceback to alert if unknown error
@@ -358,8 +330,7 @@ def TellorSignerMain() -> NoReturn:
 
                     break  # exit while loop if tx sent
 
-                print('asset:', asset.name)
-                print('asset price:', asset.price)
+                print(asset)
 
                 asset.last_pushed_price = asset.price
                 asset.time_last_pushed = asset.timestamp
