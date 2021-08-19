@@ -113,64 +113,30 @@ DAI_APIS = [
 
 ]
 
-# btc, eth are helper dictionaries used to distinguish btc prices and eth prices
+# Asset is a helper class used to distinguish btc prices and eth prices
 # these are used for data wrangling, from centralized API endpoints to
 # medianization
 
-btc = {
-    "requestId": 2,
-    "price": 0,
-    "strPrice": "",
-    "asset": "BTCUSD",
-    "timestamp": 0,
-    "lastPushedPrice": 0,
-    "timeLastPushed": 0
-}
+class Asset:
+    def __init__(self, name, request_id):
+        self.name = name 
+        self.request_id = request_id 
+        self.price = 0 
+        self.str_price = ''
+        self.timestamp = 0
+        self.last_pushed_price = 0 
+        self.time_last_pushed = 0
 
-wbtc = {
-    "requestId": 60,
-    "price": 0,
-    "asset": "WBTCUSD",
-    "strPrice": "",
-    "timestamp": 0,
-    "lastPushedPrice": 0,
-    "timeLastPushed": 0
-}
-
-eth = {
-    "requestId": 1,
-    "price": 0,
-    "asset": "ETHUSD",
-    "strPrice": "",
-    "timestamp": 0,
-    "lastPushedPrice": 0,
-    "timeLastPushed": 0
-}
-
-dai = {
-    "requestId": 39,
-    "price": 0,
-    "asset": "DAIUSD",
-    "strPrice": "",
-    "timestamp": 0,
-    "lastPushedPrice": 0,
-    "timeLastPushed": 0
-}
-
-eth_in_dai = {
-    "requestId": 1,
-    "price": 0,
-    "asset": "ETHDAI",
-    "strPrice": "",
-    "timestamp": 0,
-    "lastPushedPrice": 0,
-    "timeLastPushed": 0
-}
+btc = Asset('BTCUSD', 2)
+wbtc = Asset('WBTCUSD', 60)
+eth = Asset('ETHUSD', 1)
+dai = Asset('DAIUSD', 39)
+eth_in_dai = Asset('ETHDAI', 1)
 
 
-def bot_alert(msg: str, prev_msg: str, asset: Dict) -> str:
+def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
     print(msg)
-    message = f'asset/ID: {asset["asset"]}/{asset["requestId"]}\n' + msg
+    message = f'asset/ID: {asset.name}/{asset.request_id}\n' + msg
     message = f'network: {network}\n' + message
     message = f'owner pub key: {acc.address[:6]}...\n' + message
     message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
@@ -209,14 +175,14 @@ def get_price(public_api: List[Union[str, int]]) -> float:
         print(msg)
 
 
-def update_assets() -> List[Dict]:
-    eth_in_dai["timestamp"] = int(time.time())
+def update_assets() -> List[Asset]:
+    eth_in_dai.timestamp = int(time.time())
     eth_dai_price = medianize_eth_dai(ETH_APIS, DAI_APIS)
-    eth_in_dai["price"] = int(eth_dai_price)
+    eth_in_dai.price = int(eth_dai_price)
 
-    wbtc["timestamp"] = int(time.time())
+    wbtc.timestamp = int(time.time())
     wbtc_price = medianize_wbtc(WBTC_APIS)
-    wbtc["price"] = wbtc_price
+    wbtc.price = wbtc_price
 
     return [eth_in_dai, wbtc]
 
@@ -257,7 +223,7 @@ def medianize_wbtc(wbtc_apis: List[Union[str, int]]) -> int:
 
 
 def build_tx(
-        an_asset: Dict,
+        an_asset: Asset,
         new_nonce: int,
         new_gas_price: str,
         extra_gas_price: float) -> Dict:
@@ -276,8 +242,8 @@ def build_tx(
     new_gas_price = str(float(new_gas_price) + extra_gas_price)
 
     transaction = mesosphere.functions.submitValue(
-        an_asset['requestId'],
-        an_asset['price']).buildTransaction(
+        an_asset.request_id,
+        an_asset.price).buildTransaction(
         {
             'nonce': new_nonce,
             'gas': 4000000,
@@ -315,8 +281,8 @@ def TellorSignerMain() -> NoReturn:
                         if extra_gp >= 200.:
                             break
 
-                        if (asset["timestamp"] - asset["timeLastPushed"] > 5) or \
-                                (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
+                        if (asset.timestamp - asset.time_last_pushed > 5) or \
+                                (abs(asset.price - asset.last_pushed_price) > .05):
                             tx = build_tx(
                                 asset,
                                 nonce,
@@ -367,7 +333,7 @@ def TellorSignerMain() -> NoReturn:
 
                         # nonce already used, leave while loop
                         elif 'already known' in err_msg:
-                            msg += f'skipping asset: {asset["asset"]}'
+                            msg += f'skipping asset: {asset.name}'
                             break
 
                         # response from get_transaction_count or send_raw_transaction is None
@@ -392,11 +358,11 @@ def TellorSignerMain() -> NoReturn:
 
                     break  # exit while loop if tx sent
 
-                print('asset:', asset['asset'])
-                print('asset price:', asset['price'])
+                print('asset:', asset.name)
+                print('asset price:', asset.price)
 
-                asset["lastPushedPrice"] = asset["price"]
-                asset["timeLastPushed"] = asset["timestamp"]
+                asset.last_pushed_price = asset.price
+                asset.time_last_pushed = asset.timestamp
 
                 print("sleeping...")
                 # wait because contract only writes new values every 60 seconds
