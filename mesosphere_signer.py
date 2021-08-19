@@ -370,6 +370,20 @@ def TellorSignerMain() -> NoReturn:
                             msg += f'skipping asset: {asset["asset"]}'
                             break
 
+                        # response from get_transaction_count or send_raw_transaction is None
+                        elif 'result' in err_msg:
+                            msg += f'empty response from w3.eth.get_transaction_count(acc.address)'
+                        
+                        # wait 20 sec if error getting nonce with get_transaction_count
+                        elif 'RPC Error' in err_msg or 'RPCError' in err_msg:
+                            msg += f'RPC Error from w3.eth.get_transaction_count(acc.address)'
+                            time.sleep(20)
+                        
+                        # wait 20 sec if too may requests sent
+                        elif 'https://rpc-mainnet.maticvigil.com/' in err_msg:
+                            msg += f'too many requests in too little time. sleeping...'
+                            time.sleep(20)
+
                         else:
                             msg = 'UNKNOWN ERROR\n' + msg + tb  # append traceback to alert if unknown error
                             prev_alert = bot_alert(msg, prev_alert, asset)
