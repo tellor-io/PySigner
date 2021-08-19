@@ -17,7 +17,7 @@ import yaml
 
 load_dotenv(find_dotenv())
 
-with open('TellorMesosphere.json') as f:
+with open('../TellorMesosphere.json') as f:
     abi = f.read()
 
 # configure signer
@@ -25,7 +25,7 @@ def get_configs(args):
     '''get all signer configurations from passed flags or yaml file'''
 
     # read in configurations from yaml file
-    with open("config.yml", "r") as ymlfile:
+    with open("../config.yml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
     
     # parse command line flags & arguments
