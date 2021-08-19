@@ -1,1 +1,6 @@
+# local settings/data
+.vscode
+__pycache__
+
+# secrets
 .env
