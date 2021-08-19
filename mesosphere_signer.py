@@ -48,7 +48,7 @@ parser.add_argument(
 args = parser.parse_args()
 network = args.network[0]
 gas_price = args.gasprice[0] if args.gasprice else None
-error_gas_price = args.extra_gasprice if args.extra_gasprice else 50.
+error_gas_price = float(args.extra_gasprice[0]) if args.extra_gasprice else 50.
 
 node = config['networks'][network]['node']
 if network == 'rinkeby':
@@ -69,7 +69,9 @@ acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
 print('your address', acc.address)
 print('your balance', w3.eth.get_balance(acc.address))
 
-bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
+bot = None
+if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
+    bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 
 PRECISION = 1e6
 
@@ -172,7 +174,7 @@ def bot_alert(msg: str, prev_msg: str, asset: Dict) -> str:
     message = f'network: {network}\n' + message
     message = f'owner pub key: {acc.address[:6]}...\n' + message
     message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
-    if message != prev_msg:
+    if message != prev_msg and bot != None:
         bot.send_message(os.getenv("CHAT_ID"), message)
     return message
 
@@ -312,7 +314,7 @@ def TellorSignerMain() -> NoReturn:
                     try:
                         if extra_gp >= 200.:
                             break
-                        
+
                         if (asset["timestamp"] - asset["timeLastPushed"] > 5) or \
                                 (abs(asset["price"] - asset["lastPushedPrice"]) > .05):
                             tx = build_tx(
