@@ -17,42 +17,44 @@ import yaml
 
 load_dotenv(find_dotenv())
 
-with open('../TellorMesosphere.json') as f:
+with open("../TellorMesosphere.json") as f:
     abi = f.read()
 
 
-def get_configs(args):
-    '''get all signer configurations from passed flags or yaml file'''
+def get_configs(args: List[str]) -> Box:
+    """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
     with open("../config.yml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
-    
+
     # parse command line flags & arguments
-    parser = argparse.ArgumentParser(
-        description='Submit values to Tellor Mesosphere')
+    parser = argparse.ArgumentParser(description="Submit values to Tellor Mesosphere")
     parser.add_argument(
-        '-n',
-        '--network',
+        "-n",
+        "--network",
         nargs=1,
         required=False,
         type=str,
-        help="An EVM compatible network.")
+        help="An EVM compatible network.",
+    )
     parser.add_argument(
-        '-gp',
-        '--gasprice',
+        "-gp",
+        "--gasprice",
         nargs=1,
         required=False,
         type=str,
-        help="The gas price used for transactions. If no gas price is set, it is retrieved from https://gasstation-mainnet.matic.network.")
+        help="The gas price used for transactions. If no gas price is set, it is retrieved from https://gasstation-mainnet.matic.network.",
+    )
     parser.add_argument(
-        '-egp',
-        '--error-gasprice',
+        "-egp",
+        "--error-gasprice",
         nargs=1,
         required=False,
         type=str,
-        help="Extra gwei added to gas price if gas price too low.")
-    
+        help="Extra gwei added to gas price if gas price too low.",
+    )
+
     # get dict of parsed args
     cli_cfg = vars(parser.parse_args(args))
 
@@ -63,16 +65,17 @@ def get_configs(args):
 
     # enable dot notation for accessing configs
     config = Box(config)
-    
+
     return config
+
 
 cfg = get_configs(sys.argv[1:])
 
 network = cfg.network
 
 node = cfg.networks[network].node
-if network == 'rinkeby':
-    node += os.getenv('INFURA_KEY')
+if network == "rinkeby":
+    node += os.getenv("INFURA_KEY")
 explorer = cfg.networks[network].explorer
 chain_id = cfg.networks[network].chain_id
 
@@ -81,13 +84,10 @@ w3 = Web3(Web3.HTTPProvider(node))
 # choose network from CLI flag
 if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-mesosphere = w3.eth.contract(
-    Web3.toChecksumAddress(cfg.address),
-    abi=abi
-)
+mesosphere = w3.eth.contract(Web3.toChecksumAddress(cfg.address), abi=abi)
 acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
-print('your address', acc.address)
-print('your balance', w3.eth.get_balance(acc.address))
+print("your address", acc.address)
+print("your balance", w3.eth.get_balance(acc.address))
 
 bot = None
 if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
@@ -97,36 +97,38 @@ if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
 # these are used for data wrangling, from centralized API endpoints to
 # medianization
 
+
 class Asset:
     def __init__(self, name, request_id):
-        self.name = name 
-        self.request_id = request_id 
-        self.price = 0 
-        self.str_price = ''
+        self.name = name
+        self.request_id = request_id
+        self.price = 0
+        self.str_price = ""
         self.timestamp = 0
-        self.last_pushed_price = 0 
+        self.last_pushed_price = 0
         self.time_last_pushed = 0
-    
+
     def __str__(self):
-        return f'''
+        return f"""
             Asset: {self.name}
             \trequest_id: {self.request_id}
             \tprice: {self.price}
             \ttimestamp: {self.timestamp}
-            '''
+            """
 
-btc = Asset('BTCUSD', 2)
-wbtc = Asset('WBTCUSD', 60)
-eth = Asset('ETHUSD', 1)
-dai = Asset('DAIUSD', 39)
-eth_in_dai = Asset('ETHDAI', 1)
+
+btc = Asset("BTCUSD", 2)
+wbtc = Asset("WBTCUSD", 60)
+eth = Asset("ETHUSD", 1)
+dai = Asset("DAIUSD", 39)
+eth_in_dai = Asset("ETHDAI", 1)
 
 
 def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
     print(msg)
-    message = f'asset/ID: {asset.name}/{asset.request_id}\n' + msg
-    message = f'network: {network}\n' + message
-    message = f'owner pub key: {acc.address[:6]}...\n' + message
+    message = f"asset/ID: {asset.name}/{asset.request_id}\n" + msg
+    message = f"network: {network}\n" + message
+    message = f"owner pub key: {acc.address[:6]}...\n" + message
     message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
     if message != prev_msg and bot != None:
         bot.send_message(os.getenv("CHAT_ID"), message)
@@ -134,17 +136,17 @@ def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
 
 
 def get_price(api_info: Dict) -> float:
-    '''
+    """
     Fetches price data from centralized public web API endpoints
     Returns: (str) ticker price from public exchange web APIs
     Input: (list of str) public api endpoint with any necessary json parsing keywords
-    '''
+    """
     try:
         # Request JSON from public api endpoint
-        rsp = requests.get(api_info['url']).json()
+        rsp = requests.get(api_info["url"]).json()
 
         # Parse through json with pre-written keywords
-        for keyword in api_info['keywords']:
+        for keyword in api_info["keywords"]:
             rsp = rsp[keyword]
 
         # return price (last remaining element of the json)
@@ -154,14 +156,14 @@ def get_price(api_info: Dict) -> float:
     except Exception as e:
         api_err_msg = f'API ERROR {api_info["url"]}\n'
         tb = str(traceback.format_exc())
-        msg = api_err_msg + str(e) + '\n' + tb
+        msg = api_err_msg + str(e) + "\n" + tb
         print(msg)
 
 
 def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict) -> int:
-    '''
+    """
     Medianizes price of an asset from a selection of centralized price APIs
-    '''
+    """
     prices = []
     for name1, name2 in zip(sorted(list(eth_apis)), sorted(list(dai_apis))):
         eth_price = get_price(eth_apis[name1])
@@ -202,30 +204,28 @@ def update_assets() -> List[Asset]:
 
 
 def build_tx(
-        an_asset: Asset,
-        new_nonce: int,
-        new_gas_price: str,
-        extra_gas_price: float) -> Dict:
+    an_asset: Asset, new_nonce: int, new_gas_price: str, extra_gas_price: float
+) -> Dict:
 
     new_gas_price = str(float(new_gas_price) + extra_gas_price)
 
     transaction = mesosphere.functions.submitValue(
-        an_asset.request_id,
-        an_asset.price).buildTransaction(
+        an_asset.request_id, an_asset.price
+    ).buildTransaction(
         {
-            'nonce': new_nonce,
-            'gas': 4000000,
-            'gasPrice': w3.toWei(
-                new_gas_price,
-                'gwei'),
-            'chainId': chain_id})
+            "nonce": new_nonce,
+            "gas": 4000000,
+            "gasPrice": w3.toWei(new_gas_price, "gwei"),
+            "chainId": chain_id,
+        }
+    )
 
-    print('gas price used:', new_gas_price)
+    print("gas price used:", new_gas_price)
     return transaction
 
 
 def TellorSignerMain() -> NoReturn:
-    prev_alert = ''
+    prev_alert = ""
     current_asset = None
     while True:
         try:
@@ -235,91 +235,96 @@ def TellorSignerMain() -> NoReturn:
 
             for asset in assets:
                 current_asset = asset
-                print('nonce:', nonce)
+                print("nonce:", nonce)
 
                 # if signer balance is less than half an ether, send alert
-                if (w3.eth.get_balance(acc.address) < 5E14):
-                    msg = f'warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}'
+                if w3.eth.get_balance(acc.address) < 5e14:
+                    msg = f"warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}"
                     prev_alert = bot_alert(msg, prev_alert, asset)
 
-                extra_gp = 0.  # added to gas price to speed up tx if gas price too low
+                extra_gp = 0.0  # added to gas price to speed up tx if gas price too low
 
                 while True:
                     try:
                         if extra_gp >= cfg.extra_gasprice_ceiling:
                             break
 
-                        if (asset.timestamp - asset.time_last_pushed > 5) or \
-                                (abs(asset.price - asset.last_pushed_price) > .05):
+                        if (asset.timestamp - asset.time_last_pushed > 5) or (
+                            abs(asset.price - asset.last_pushed_price) > 0.05
+                        ):
                             tx = build_tx(
                                 asset,
                                 nonce,
                                 new_gas_price=cfg.gasprice,
-                                extra_gas_price=extra_gp)
-                            print('tx built')
+                                extra_gas_price=extra_gp,
+                            )
+                            print("tx built")
 
-                            tx_signed = w3.eth.default_account.sign_transaction(
-                                tx)
-                            print('tx signed')
+                            tx_signed = w3.eth.default_account.sign_transaction(tx)
+                            print("tx signed")
 
                             tx_hash = w3.eth.send_raw_transaction(
-                                tx_signed.rawTransaction)
-                            print('got tx hash')
+                                tx_signed.rawTransaction
+                            )
+                            print("got tx hash")
 
                             _ = w3.eth.wait_for_transaction_receipt(
-                                tx_hash, timeout=360)
-                            print('got tx receipt, tx sent')
+                                tx_hash, timeout=360
+                            )
+                            print("got tx receipt, tx sent")
                             nonce += 1
                     except Exception as e:
                         # traceback.print_exc()
                         tb = str(traceback.format_exc())
-                        msg = str(e) + '\n'
+                        msg = str(e) + "\n"
                         err_msg = str(e.args)
 
                         # increase gas price if transaction timeout
-                        if 'timeout' in tb:
+                        if "timeout" in tb:
                             extra_gp += cfg.error_gasprice
-                            msg += f'increased gas price by {cfg.error_gasprice} gwei'
+                            msg += f"increased gas price by {cfg.error_gasprice} gwei"
                             continue
 
                         # reduce gas price if over threshold
-                        elif 'exceeds the configured cap' in err_msg:
-                            msg += 'reducing gas price'
-                            extra_gp = 0.
+                        elif "exceeds the configured cap" in err_msg:
+                            msg += "reducing gas price"
+                            extra_gp = 0.0
 
-                        elif 'replacement transaction underpriced' in err_msg:
+                        elif "replacement transaction underpriced" in err_msg:
                             extra_gp += cfg.error_gasprice
-                            msg += f'increased gas price by {cfg.error_gasprice} gwei'
+                            msg += f"increased gas price by {cfg.error_gasprice} gwei"
 
-                        elif 'nonce too low' in err_msg:
-                            msg += 'increasing nonce'
+                        elif "nonce too low" in err_msg:
+                            msg += "increasing nonce"
                             nonce += 1
-                        
-                        elif 'insufficient funds' in err_msg:
-                            msg += f'Check {explorer}/address/{acc.address}\n'
+
+                        elif "insufficient funds" in err_msg:
+                            msg += f"Check {explorer}/address/{acc.address}\n"
                             prev_alert = bot_alert(msg, prev_alert, asset)
 
                         # nonce already used, leave while loop
-                        elif 'already known' in err_msg:
-                            msg += f'skipping asset: {asset.name}'
+                        elif "already known" in err_msg:
+                            msg += f"skipping asset: {asset.name}"
                             break
 
                         # response from get_transaction_count or send_raw_transaction is None
-                        elif 'result' in err_msg:
-                            msg += f'empty response from w3.eth.get_transaction_count(acc.address)'
-                        
+                        elif "result" in err_msg:
+                            msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
+
                         # wait if error getting nonce with get_transaction_count
-                        elif 'RPC Error' in err_msg or 'RPCError' in err_msg:
-                            msg += f'RPC Error from w3.eth.get_transaction_count(acc.address)'
+                        elif "RPC Error" in err_msg or "RPCError" in err_msg:
+                            msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
                             time.sleep(cfg.error_waittime)
-                        
+
                         # wait if too may requests sent
-                        elif 'https://rpc-mainnet.maticvigil.com/' in err_msg:
-                            msg += f'too many requests in too little time. sleeping...'
+                        elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
+                            msg += f"too many requests in too little time. sleeping..."
                             time.sleep(cfg.error_waittime)
 
                         else:
-                            msg = 'UNKNOWN ERROR\n' + msg + tb  # append traceback to alert if unknown error
+                            msg = (
+                                "UNKNOWN ERROR\n" + msg + tb
+                            )  # append traceback to alert if unknown error
                             prev_alert = bot_alert(msg, prev_alert, asset)
 
                         continue
@@ -335,14 +340,14 @@ def TellorSignerMain() -> NoReturn:
                 # wait because contract only writes new values every 60 seconds
                 time.sleep(20)
 
-                if w3.eth.get_balance(acc.address) < 0.005 * 1E18:
-                    msg = f'urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}'
+                if w3.eth.get_balance(acc.address) < 0.005 * 1e18:
+                    msg = f"urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}"
                     prev_alert = bot_alert(msg, prev_alert, asset)
                     time.sleep(60 * 15)
 
         except Exception as e:
             tb = str(traceback.format_exc())
-            msg = str(e) + '\n' + tb
+            msg = str(e) + "\n" + tb
             prev_alert = bot_alert(msg, prev_alert, current_asset)
             continue
 
