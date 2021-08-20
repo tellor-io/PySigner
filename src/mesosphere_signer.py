@@ -20,7 +20,7 @@ load_dotenv(find_dotenv())
 with open('../TellorMesosphere.json') as f:
     abi = f.read()
 
-# configure signer
+
 def get_configs(args):
     '''get all signer configurations from passed flags or yaml file'''
 
@@ -158,8 +158,7 @@ def get_price(api_info: Dict) -> float:
         print(msg)
 
 
-def medianize_eth_dai(
-        eth_apis: Dict, dai_apis: Dict) -> int:
+def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict) -> int:
     '''
     Medianizes price of an asset from a selection of centralized price APIs
     '''
