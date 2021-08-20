@@ -178,16 +178,13 @@ def medianize_eth_dai(
     return int(prices[int(len(prices) / 2)])
 
 
-def medianize_wbtc(wbtc_apis: Dict) -> int:
+def medianize_prices(apis: Dict) -> int:
     prices = []
-    for name in wbtc_apis:
-        wbtc_price = get_price(wbtc_apis[name])
+    for name in apis:
+        price = get_price(apis[name])
 
-        if wbtc_price is None:
-            continue
-
-        if wbtc_price > 0:
-            prices.append(wbtc_price * cfg.precision)
+        if price:
+            prices.append(price * cfg.precision)
 
     prices.sort()
     return int(prices[int(len(prices) / 2)])
@@ -199,7 +196,7 @@ def update_assets() -> List[Asset]:
     eth_in_dai.price = int(eth_dai_price)
 
     wbtc.timestamp = int(time.time())
-    wbtc_price = medianize_wbtc(cfg.apis.wbtc)
+    wbtc_price = medianize_prices(cfg.apis.wbtc)
     wbtc.price = wbtc_price
 
     return [eth_in_dai, wbtc]
