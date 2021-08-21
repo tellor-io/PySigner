@@ -1,0 +1,134 @@
+# default settings for mesosphere_signer
+network: polygon
+precision: 1000000
+gasprice: '3'
+error_gasprice: 20.
+extra_gasprice_ceiling: 200.
+error_waittime: 20
+
+# price data apis from centralized exchanges
+# a url to get price data and a list of keywords used to parse the received json
+apis:
+  btc:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/BTC-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd
+      keywords:
+        - bitcoin
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USD-BTC
+      keywords:
+        - result
+        - Last
+    gemini:
+      url: https://api.gemini.com/v1/pubticker/btcusd
+      keywords:
+        - last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=TBTCUSD
+      keywords:
+        - result
+        - TBTCUSD
+        - c
+        - 0
+  
+  wbtc:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/WBTC-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=wrapped-bitcoin&vs_currencies=usd
+      keywords:
+        - wrapped-bitcoin
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-WBTC
+      keywords:
+        - result
+        - Last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=WBTCUSD
+      keywords:
+        - result
+        - WBTCUSD
+        - c
+        - 0
+  
+  eth:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/ETH-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd
+      keywords:
+        - ethereum
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USD-ETH
+      keywords:
+        - result
+        - Last
+    gemini:
+      url: https://api.gemini.com/v1/pubticker/ethusd
+      keywords:
+        - last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=ETHUSDC
+      keywords:
+        - result
+        - ETHUSDC
+        - c
+        - 0
+  
+  dai:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/DAI-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=dai&vs_currencies=usd
+      keywords:
+        - dai
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USD-DAI
+      keywords:
+        - result
+        - Last
+    gemini:
+      url: https://api.gemini.com/v1/pubticker/daiusd
+      keywords:
+        - last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=DAIUSD
+      keywords:
+        - result
+        - DAIUSD
+        - c
+        - 0
+
+# tellor contract
+address: 0xACC2d27400029904919ea54fFc0b18Bf07C57875
+
+# settings for interacting with different chains using w3 library
+networks:
+  rinkeby:
+    node: https://rinkeby.infura.io/v3/
+    explorer: https://rinkeby.etherscan.io/
+    chain_id: 4
+  
+  mumbai:
+    node: https://rpc-mumbai.matic.today
+    explorer: https://mumbai.polygonscan.com/
+    chain_id: 80001
+  
+  polygon:
+    node: https://rpc-mainnet.maticvigil.com
+    explorer: https://polygonscan.com
+    chain_id: 137

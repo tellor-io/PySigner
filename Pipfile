@@ -13,7 +13,10 @@ sympy = "*"
 ecdsa = "*"
 python-decouple = "*"
 pytelegrambotapi = "*"
-autopep8 = "*"
+pytest = "*"
+pyyaml = "*"
+python-box = "*"
+black = "*"
 
 [dev-packages]
 
