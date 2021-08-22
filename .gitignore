@@ -3,7 +3,8 @@
 .idea
 
 # secrets
-.env
+.env*
+!.env.example
 
 # Github 'standard' python ignores
 # https://github.com/github/gitignore/blob/master/Python.gitignore
