@@ -1,12 +1,7 @@
-import hashlib
-import json
-import requests
 import time
 
 from decouple import config
 from eth_account.messages import encode_defunct
-from signature import pedersen_hash
-import stark_cli
 from web3 import Web3
 from web3.auto import w3
 
@@ -20,7 +15,7 @@ def EthKeyToStarkKey(eth_key):
     return stark_private_key
 
 
-def testSign():
+def test_sign():
     time_string = "1 January, 2020"
     price = 11512.34
     asset = "BTCUSD"
@@ -48,4 +43,3 @@ def testSign():
     print('signature: ', signature)
 
 
-testSign()

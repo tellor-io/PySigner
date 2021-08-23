@@ -15,12 +15,6 @@ from web3.middleware import geth_poa_middleware
 import yaml
 
 
-load_dotenv(find_dotenv())
-
-with open("../TellorMesosphere.json") as f:
-    abi = f.read()
-
-
 def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
@@ -69,30 +63,6 @@ def get_configs(args: List[str]) -> Box:
     return config
 
 
-cfg = get_configs(sys.argv[1:])
-
-network = cfg.network
-
-node = cfg.networks[network].node
-if network == "rinkeby":
-    node += os.getenv("INFURA_KEY")
-explorer = cfg.networks[network].explorer
-chain_id = cfg.networks[network].chain_id
-
-w3 = Web3(Web3.HTTPProvider(node))
-
-# choose network from CLI flag
-if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-mesosphere = w3.eth.contract(Web3.toChecksumAddress(cfg.address), abi=abi)
-acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
-print("your address", acc.address)
-print("your balance", w3.eth.get_balance(acc.address))
-
-bot = None
-if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
-    bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-
 # Asset is a helper class used to distinguish btc prices and eth prices
 # these are used for data wrangling, from centralized API endpoints to
 # medianization
@@ -115,13 +85,6 @@ class Asset:
             \tprice: {self.price}
             \ttimestamp: {self.timestamp}
             """
-
-
-btc = Asset("BTCUSD", 2)
-wbtc = Asset("WBTCUSD", 60)
-eth = Asset("ETHUSD", 1)
-dai = Asset("DAIUSD", 39)
-eth_in_dai = Asset("ETHDAI", 1)
 
 
 def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
@@ -204,9 +167,8 @@ def update_assets() -> List[Asset]:
 
 
 def build_tx(
-    an_asset: Asset, new_nonce: int, new_gas_price: str, extra_gas_price: float
+        an_asset: Asset, new_nonce: int, new_gas_price: str, extra_gas_price: float
 ) -> Dict:
-
     new_gas_price = str(float(new_gas_price) + extra_gas_price)
 
     transaction = mesosphere.functions.submitValue(
@@ -250,7 +212,7 @@ def TellorSignerMain() -> NoReturn:
                             break
 
                         if (asset.timestamp - asset.time_last_pushed > 5) or (
-                            abs(asset.price - asset.last_pushed_price) > 0.05
+                                abs(asset.price - asset.last_pushed_price) > 0.05
                         ):
                             tx = build_tx(
                                 asset,
@@ -323,7 +285,7 @@ def TellorSignerMain() -> NoReturn:
 
                         else:
                             msg = (
-                                "UNKNOWN ERROR\n" + msg + tb
+                                    "UNKNOWN ERROR\n" + msg + tb
                             )  # append traceback to alert if unknown error
                             prev_alert = bot_alert(msg, prev_alert, asset)
 
@@ -352,4 +314,41 @@ def TellorSignerMain() -> NoReturn:
             continue
 
 
-TellorSignerMain()
+if __name__ == '__main__':
+
+    btc = Asset("BTCUSD", 2)
+    wbtc = Asset("WBTCUSD", 60)
+    eth = Asset("ETHUSD", 1)
+    dai = Asset("DAIUSD", 39)
+    eth_in_dai = Asset("ETHDAI", 1)
+
+    load_dotenv(find_dotenv())
+
+    with open("../TellorMesosphere.json") as f:
+        abi = f.read()
+
+    cfg = get_configs(sys.argv[1:])
+
+    network = cfg.network
+
+    node = cfg.networks[network].node
+    if network == "rinkeby":
+        node += os.getenv("INFURA_KEY")
+    explorer = cfg.networks[network].explorer
+    chain_id = cfg.networks[network].chain_id
+
+    w3 = Web3(Web3.HTTPProvider(node))
+
+    # choose network from CLI flag
+    if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    mesosphere = w3.eth.contract(Web3.toChecksumAddress(cfg.address), abi=abi)
+    acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
+    print("your address", acc.address)
+    print("your balance", w3.eth.get_balance(acc.address))
+
+    bot = None
+    if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
+        bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
+
+    TellorSignerMain()
