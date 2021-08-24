@@ -147,5 +147,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# trasaction data
+# logs
 tx_data.csv
+signer.log
+
