@@ -10,8 +10,10 @@ A python library + script for requesting, standardizing, and signing price feeds
 
 Clone the repository and install python dependencies:
 
-`git clone https://github.com/tellor-io/PySigner.git`
-`cd ./Pysigner && pipenv install`
+```
+git clone https://github.com/tellor-io/PySigner.git
+cd ./Pysigner && pipenv install
+```
 
 ### Change environment variables
 
@@ -24,7 +26,9 @@ TellorSigner reads api keys and other user secrets from a `.env` file. Rename `.
 
 ### Usage
 
-`pipenv run python ./pysigner/mesosphere_signer.py`
+```
+pipenv run python ./pysigner/mesosphere_signer.py
+```
 
 ### Configuring the signer
 
