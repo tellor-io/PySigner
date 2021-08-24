@@ -1,5 +1,6 @@
 import argparse
 import csv
+import logging
 import os
 import requests
 import sys
@@ -15,6 +16,27 @@ import telebot
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 import yaml
+
+
+# set up logging for transaction data
+tx_data_log = logging.getLogger('transactions')
+tx_data_log.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(message)s')
+csv_handler = logging.FileHandler('./logs/tx_data.csv')
+csv_handler.setFormatter(formatter)
+
+tx_data_log.addHandler(csv_handler)
+
+# set up logging for expected TellorSigner info & errors
+signer_log = logging.getLogger('signer')
+signer_log.setLevel(logging.INFO)
+
+signer_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log_handler = logging.FileHandler('./logs/signer.log')
+log_handler.setFormatter(signer_formatter)
+
+signer_log.addHandler(log_handler)
 
 
 def get_configs(args: List[str]) -> Box:
@@ -111,7 +133,7 @@ def get_price(api_info: Dict) -> float:
         api_err_msg = f'API ERROR {api_info["url"]}\n'
         tb = str(traceback.format_exc())
         msg = api_err_msg + str(e) + "\n" + tb
-        print(msg)
+        signer_log.error(msg)
 
 
 def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict, precision: int) -> int:
@@ -184,22 +206,25 @@ class TellorSigner:
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
             os.getenv("PRIVATEKEY")
         )
-        print("your address", self.acc.address)
+        signer_log.info(f'your address: {self.acc.address}')
         self.starting_balance = self.w3.eth.get_balance(self.acc.address)
-        print("your balance", self.starting_balance)
+        signer_log.info(f'your balance: {self.starting_balance}')
 
         self.bot = None
         if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
             self.bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 
     def bot_alert(self, msg: str, prev_msg: str, asset: Asset) -> str:
-        print(msg)
-        message = f"asset/ID: {asset.name}/{asset.request_id}\n" + msg
-        message = f"network: {self.cfg.network}\n" + message
-        message = f"owner pub key: {self.acc.address[:6]}...\n" + message
-        message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
+        message = f'''
+        bot name: {os.getenv("BOT_NAME")}
+        owner pub key: {self.acc.address[:6]}...
+        network: {self.cfg.network}
+        asset/ID: {asset.name}/{asset.request_id}
+        {msg}
+        '''
         if message != prev_msg and self.bot != None:
             self.bot.send_message(os.getenv("CHAT_ID"), message)
+            signer_log.info(f'telegram alert sent: \n{msg}')
         return message
 
     def update_assets(self):
@@ -240,21 +265,11 @@ class TellorSigner:
             }
         )
 
-        print("gas price used:", new_gas_price)
         return transaction
 
     def log_tx(self, asset: Asset, tx_hash: HexBytes):
-        fields = [
-            asset.timestamp, 
-            asset.name, 
-            asset.price, 
-            asset.request_id, 
-            tx_hash.hex(),
-            self.cfg.network
-        ]
-        with open(self.cfg.tx_data_pathname, 'a') as f:
-            writer = csv.writer(f)
-            writer.writerow(fields)
+        rows = f'{asset.timestamp},{asset.name},{asset.price},{asset.request_id},{tx_hash.hex()},{self.cfg.network}'
+        tx_data_log.info(rows)
 
     def run(self):
         prev_alert = ""
@@ -272,6 +287,7 @@ class TellorSigner:
                     # if signer balance is less than half an ether, send alert
                     if self.w3.eth.get_balance(self.acc.address) < 5e14:
                         msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        signer_log.warning(msg)
                         prev_alert = self.bot_alert(msg, prev_alert, asset)
 
                     extra_gp = (
@@ -281,6 +297,8 @@ class TellorSigner:
                     while True:
                         try:
                             if extra_gp >= self.cfg.extra_gasprice_ceiling:
+                                signer_log.info('exceeded gas price ceiling, resetting extra gas price')
+                                extra_gp = 0.
                                 break
 
                             if (asset.timestamp - asset.time_last_pushed > 5) or (
@@ -300,11 +318,12 @@ class TellorSigner:
                                 tx_hash = self.w3.eth.send_raw_transaction(
                                     tx_signed.rawTransaction
                                 )
+                                print('waiting for tx receipt')
 
                                 _ = self.w3.eth.wait_for_transaction_receipt(
                                     tx_hash, timeout=self.cfg.receipt_timeout
                                 )
-                                print("got tx receipt, tx sent")
+                                print("received, tx sent")
                                 self.log_tx(asset, tx_hash)
                                 nonce += 1
                         except Exception as e:
@@ -318,37 +337,45 @@ class TellorSigner:
                             if "timeout" in tb:
                                 extra_gp += self.cfg.error_gasprice
                                 msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                                signer_log.info(msg)
                                 continue
 
                             # reduce gas price if over threshold
                             elif "exceeds the configured cap" in err_msg:
                                 msg += "reducing gas price"
                                 extra_gp = 0.0
+                                signer_log.info(msg)
 
                             elif "replacement transaction underpriced" in err_msg:
                                 extra_gp += self.cfg.error_gasprice
                                 msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                                signer_log.info(msg)
 
                             elif "nonce too low" in err_msg:
                                 msg += "increasing nonce"
                                 nonce += 1
+                                signer_log.info(msg)
 
                             elif "insufficient funds" in err_msg:
                                 msg += f"Check {self.explorer}/address/{self.acc.address}\n"
+                                signer_log.warning(msg)
                                 prev_alert = self.bot_alert(msg, prev_alert, asset)
 
                             # nonce already used, leave while loop
                             elif "already known" in err_msg:
                                 msg += f"skipping asset: {asset.name}"
+                                signer_log.info(msg)
                                 break
 
                             # response from get_transaction_count or send_raw_transaction is None
                             elif "result" in err_log:
                                 msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
+                                signer_log.info(msg)
 
                             # wait if error getting nonce with get_transaction_count
                             elif "RPC Error" in err_log or "RPCError" in err_log:
                                 msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
+                                signer_log.info(msg)
                                 time.sleep(self.cfg.error_waittime)
 
                             # wait if too may requests sent
@@ -356,12 +383,14 @@ class TellorSigner:
                                 msg += (
                                     f"too many requests in too little time. sleeping..."
                                 )
+                                signer_log.info(msg)
                                 time.sleep(self.cfg.error_waittime)
 
                             else:
                                 msg = (
                                     "UNKNOWN ERROR\n" + msg + tb
                                 )  # append traceback to alert if unknown error
+                                signer_log.error(msg)
                                 prev_alert = self.bot_alert(msg, prev_alert, asset)
 
                             continue
@@ -379,12 +408,14 @@ class TellorSigner:
 
                     if self.w3.eth.get_balance(self.acc.address) < 0.005 * 1e18:
                         msg = f"urgent: signer ran out out of ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        signer_log.warning(msg)
                         prev_alert = self.bot_alert(msg, prev_alert, asset)
                         time.sleep(60 * 15)
 
             except Exception as e:
                 tb = str(traceback.format_exc())
                 msg = str(e) + "\n" + tb
+                signer_log.error(msg)
                 prev_alert = self.bot_alert(msg, prev_alert, current_asset)
                 continue
 
