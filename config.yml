@@ -9,7 +9,7 @@ error_waittime: 20
 # price data apis from centralized exchanges
 # a url to get price data and a list of keywords used to parse the received json
 apis:
-  btc:
+  BTCUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/BTC-USD/ticker
       keywords:
@@ -36,7 +36,7 @@ apis:
         - c
         - 0
   
-  wbtc:
+  WBTCUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/WBTC-USD/ticker
       keywords:
@@ -59,7 +59,7 @@ apis:
         - c
         - 0
   
-  eth:
+  ETHUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/ETH-USD/ticker
       keywords:
@@ -86,7 +86,7 @@ apis:
         - c
         - 0
   
-  dai:
+  DAIUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/DAI-USD/ticker
       keywords:
