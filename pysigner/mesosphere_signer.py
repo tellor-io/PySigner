@@ -244,7 +244,14 @@ class TellorSigner:
         return transaction
 
     def log_tx(self, asset: Asset, tx_hash: HexBytes):
-        fields = [asset.timestamp, asset.name, asset.price, asset.request_id, tx_hash.hex()]
+        fields = [
+            asset.timestamp, 
+            asset.name, 
+            asset.price, 
+            asset.request_id, 
+            tx_hash.hex(),
+            self.cfg.network
+        ]
         with open(self.cfg.tx_data_pathname, 'a') as f:
             writer = csv.writer(f)
             writer.writerow(fields)
