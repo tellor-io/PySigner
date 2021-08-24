@@ -1,10 +1,12 @@
 import argparse
+import csv
 import os
 import requests
 import sys
 import time
 import traceback
 
+from hexbytes import HexBytes
 from typing import Dict, List
 
 from box import Box
@@ -51,7 +53,6 @@ def get_configs(args: List[str]) -> Box:
 
     # get dict of parsed args
     cli_cfg = vars(parser.parse_args(args))
-    print(cli_cfg)
 
     # overwrite any configs from yaml file also given by user via cli
     for flag, arg in cli_cfg.items():
@@ -242,6 +243,12 @@ class TellorSigner:
         print("gas price used:", new_gas_price)
         return transaction
 
+    def log_tx(self, asset: Asset, tx_hash: HexBytes):
+        fields = [asset.timestamp, asset.name, asset.price, asset.request_id, tx_hash.hex()]
+        with open(self.cfg.tx_data_pathname, 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow(fields)
+
     def run(self):
         prev_alert = ""
         current_asset = None
@@ -288,9 +295,10 @@ class TellorSigner:
                                 )
 
                                 _ = self.w3.eth.wait_for_transaction_receipt(
-                                    tx_hash, timeout=360
+                                    tx_hash, timeout=self.cfg.receipt_timeout
                                 )
                                 print("got tx receipt, tx sent")
+                                self.log_tx(asset, tx_hash)
                                 nonce += 1
                         except Exception as e:
                             # traceback.print_exc()
