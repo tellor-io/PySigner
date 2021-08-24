@@ -45,12 +45,13 @@ def get_configs(args: List[str]) -> Box:
         "--error-gasprice",
         nargs=1,
         required=False,
-        type=str,
+        type=float,
         help="Extra gwei added to gas price if gas price too low.",
     )
 
     # get dict of parsed args
     cli_cfg = vars(parser.parse_args(args))
+    print(cli_cfg)
 
     # overwrite any configs from yaml file also given by user via cli
     for flag, arg in cli_cfg.items():
