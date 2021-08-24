@@ -172,6 +172,7 @@ def medianize(prices: List[float]) -> int:
 
 class TellorSigner:
     def __init__(self, cfg):
+        signer_log.info('starting TellorSigner')
         self.cfg = cfg
 
         self.assets = [
@@ -206,6 +207,7 @@ class TellorSigner:
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
             os.getenv("PRIVATEKEY")
         )
+
         signer_log.info(f'your address: {self.acc.address}')
         self.starting_balance = self.w3.eth.get_balance(self.acc.address)
         signer_log.info(f'your balance: {self.starting_balance}')
