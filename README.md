@@ -1,35 +1,46 @@
-# StarkwareSigner
-
-## General
+# PySigner
 
 A python library + script for requesting, standardizing, and signing price feeds.
 
-## Installation
+## Setup and Usage
 
-### Python Dependencies
+### Set up environment
 
-Required packages can be installed with `pipenv install`.
-Refer [here](https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv) for `pipenv` installation instructions if you do not have `pipenv` preinstalled.
+[Python 3.8](https://www.python.org/downloads/release/python-380/) or higher is required, as is pipenv. Installation instructions for `pipenv` are [here](https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv), if not preinstalled.
 
-### Environment variables
+Clone the repository and install python dependencies:
 
-StarkwareSigner takes advantage of the `python-dotenv` module, which reads environment variables from a `.env` file. This `.env` file is where you may store your ETH private key. StarkwareSigner will read from the `.env` file in order to create a Starkware Key from your ETH Key.
+`git clone https://github.com/tellor-io/PySigner.git`
+`cd ./Pysigner && pipenv install`
 
-## Script Walkthrough
+### Change environment variables
 
-### Requesting
+TellorSigner reads api keys and other user secrets from a `.env` file. Rename `.env.example` to `.env` and update the variables as follows:
+- `PRIVATEKEY` is your ETH private key.
+- `INFURA_KEY` is needed if testing on a network like rinkeby. Sign up for infura [here](https://infura.io/).
+- `TG_TOKEN` and `CHAT_ID` are needed if you want to receive error alerts to a Telegram chat group. Instructions for getting these strings are [here]().
+- `BOT_NAME` can be specified if using Telegram alerts.
+- `TEST_VAR` is for testing. Don't change it.
 
-StarkwareSigner requests centralized price feeds for BTC/USD and ETH/USD from:
-* Coinbase
-* Coingecko
-* Bittrex
-* Gemini
-* Kraken
+### Usage
 
-### Standardizing
+`pipenv run python ./pysigner/mesosphere_signer.py`
 
-StarkwareSigner then medianizes last submitted prices from each source, formatting price and metadata as JSON to be signed.
+### Configuring the signer
 
-### Signing
+`config.yml`
 
-Data subissions are signed with Starkware signing technology.
+### Testing
+
+```
+pipenv shell
+cd ./tests
+pytest
+```
+
+### Formatting
+```
+pipenv shell
+cd ./pysigner
+black ./
+```
