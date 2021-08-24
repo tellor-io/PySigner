@@ -5,7 +5,7 @@ import sys
 import time
 import traceback
 
-from typing import Dict, List, NoReturn
+from typing import Dict, List
 
 from box import Box
 from dotenv import load_dotenv, find_dotenv
@@ -88,17 +88,6 @@ class Asset:
             """
 
 
-def bot_alert(msg: str, prev_msg: str, asset: Asset) -> str:
-    print(msg)
-    message = f"asset/ID: {asset.name}/{asset.request_id}\n" + msg
-    message = f"network: {network}\n" + message
-    message = f"owner pub key: {acc.address[:6]}...\n" + message
-    message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
-    if message != prev_msg and bot != None:
-        bot.send_message(os.getenv("CHAT_ID"), message)
-    return message
-
-
 def get_price(api_info: Dict) -> float:
     """
     Fetches price data from centralized public web API endpoints
@@ -124,7 +113,7 @@ def get_price(api_info: Dict) -> float:
         print(msg)
 
 
-def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict) -> int:
+def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict, precision: int) -> int:
     """
     Medianizes price of an asset from a selection of centralized price APIs
     """
@@ -137,219 +126,254 @@ def medianize_eth_dai(eth_apis: Dict, dai_apis: Dict) -> int:
             continue
 
         if eth_price > 0 and dai_price > 0:
-            prices.append((eth_price / dai_price) * cfg.precision)
+            prices.append((eth_price / dai_price) * precision)
 
-    prices.sort()
-    return int(prices[int(len(prices) / 2)])
+    return medianize(prices)
 
 
-def medianize_prices(apis: Dict) -> int:
+def medianize_prices(apis: Dict, precision: int) -> int:
     prices = []
     for name in apis:
         price = get_price(apis[name])
 
         if price:
-            prices.append(price * cfg.precision)
+            prices.append(price * precision)
 
+    return medianize(prices)
+
+
+def medianize(prices: List[float]) -> int:
     prices.sort()
     return int(prices[int(len(prices) / 2)])
 
 
-def update_assets() -> List[Asset]:
-    eth_in_dai.timestamp = int(time.time())
-    eth_dai_price = medianize_eth_dai(cfg.apis.eth, cfg.apis.dai)
-    eth_in_dai.price = int(eth_dai_price)
+class TellorSigner:
+    def __init__(self, cfg):
+        self.cfg = cfg
 
-    wbtc.timestamp = int(time.time())
-    wbtc_price = medianize_prices(cfg.apis.wbtc)
-    wbtc.price = wbtc_price
+        self.assets = [
+            # Asset("BTCUSD", 2),
+            Asset("WBTCUSD", 60),
+            # Asset("ETHUSD", 1),
+            # Asset("DAIUSD", 39),
+            Asset("ETHDAI", 1),
+        ]
 
-    return [eth_in_dai, wbtc]
+        load_dotenv(find_dotenv())
+        self.secret_test = os.getenv("TEST_VAR")
 
+        with open("../TellorMesosphere.json") as f:
+            abi = f.read()
 
-def build_tx(
-        an_asset: Asset, new_nonce: int, new_gas_price: str, extra_gas_price: float
-) -> Dict:
-    new_gas_price = str(float(new_gas_price) + extra_gas_price)
+        network = self.cfg.network
+        node = self.cfg.networks[network].node
+        if network == "rinkeby":
+            node += os.getenv("INFURA_KEY")
+        self.explorer = self.cfg.networks[network].explorer
+        self.chain_id = self.cfg.networks[network].chain_id
 
-    transaction = mesosphere.functions.submitValue(
-        an_asset.request_id, an_asset.price
-    ).buildTransaction(
-        {
-            "nonce": new_nonce,
-            "gas": 4000000,
-            "gasPrice": w3.toWei(new_gas_price, "gwei"),
-            "chainId": chain_id,
-        }
-    )
+        self.w3 = Web3(Web3.HTTPProvider(node))
 
-    print("gas price used:", new_gas_price)
-    return transaction
+        # choose network from CLI flag
+        if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
+            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        self.mesosphere = self.w3.eth.contract(
+            Web3.toChecksumAddress(self.cfg.address), abi=abi
+        )
+        self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
+            os.getenv("PRIVATEKEY")
+        )
+        print("your address", self.acc.address)
+        self.starting_balance = self.w3.eth.get_balance(self.acc.address)
+        print("your balance", self.starting_balance)
 
+        self.bot = None
+        if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
+            self.bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 
-def TellorSignerMain() -> NoReturn:
-    prev_alert = ""
-    current_asset = None
-    while True:
-        try:
-            assets = update_assets()
+    def bot_alert(self, msg: str, prev_msg: str, asset: Asset) -> str:
+        print(msg)
+        message = f"asset/ID: {asset.name}/{asset.request_id}\n" + msg
+        message = f"network: {self.network}\n" + message
+        message = f"owner pub key: {self.acc.address[:6]}...\n" + message
+        message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
+        if message != prev_msg and self.bot != None:
+            self.bot.send_message(os.getenv("CHAT_ID"), message)
+        return message
 
-            nonce = w3.eth.get_transaction_count(acc.address)
+    def update_assets(self):
+        updated_assets = []
 
-            for asset in assets:
-                current_asset = asset
-                print("nonce:", nonce)
+        for asset in self.assets:
+            asset.timestamp = int(time.time())
 
-                # if signer balance is less than half an ether, send alert
-                if w3.eth.get_balance(acc.address) < 5e14:
-                    msg = f"warning: signer balance now below .5 ETH\nCheck {explorer}/address/{acc.address}"
-                    prev_alert = bot_alert(msg, prev_alert, asset)
+            if asset.name == "ETHDAI":
+                price = medianize_eth_dai(
+                    self.cfg.apis.ETHUSD, self.cfg.apis.DAIUSD, self.cfg.precision
+                )
+            else:
+                price = medianize_prices(self.cfg.apis[asset.name], self.cfg.precision)
+            asset.price = price
 
-                extra_gp = 0.0  # added to gas price to speed up tx if gas price too low
+            updated_assets.append(asset)
 
-                while True:
-                    try:
-                        if extra_gp >= cfg.extra_gasprice_ceiling:
-                            break
+        self.assets = updated_assets
 
-                        if (asset.timestamp - asset.time_last_pushed > 5) or (
+    def build_tx(
+        self,
+        an_asset: Asset,
+        new_nonce: int,
+        new_gas_price: str,
+        extra_gas_price: float,
+    ) -> Dict:
+        new_gas_price = str(float(new_gas_price) + extra_gas_price)
+
+        transaction = self.mesosphere.functions.submitValue(
+            an_asset.request_id, an_asset.price
+        ).buildTransaction(
+            {
+                "nonce": new_nonce,
+                "gas": 4000000,
+                "gasPrice": self.w3.toWei(new_gas_price, "gwei"),
+                "chainId": self.chain_id,
+            }
+        )
+
+        print("gas price used:", new_gas_price)
+        return transaction
+
+    def run(self):
+        prev_alert = ""
+        current_asset = None
+        while True:
+            try:
+                self.update_assets()
+
+                nonce = self.w3.eth.get_transaction_count(self.acc.address)
+
+                for i, asset in enumerate(self.assets):
+                    current_asset = asset
+                    print("nonce:", nonce)
+
+                    # if signer balance is less than half an ether, send alert
+                    if self.w3.eth.get_balance(self.acc.address) < 5e14:
+                        msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        prev_alert = self.bot_alert(msg, prev_alert, asset)
+
+                    extra_gp = (
+                        0.0  # added to gas price to speed up tx if gas price too low
+                    )
+
+                    while True:
+                        try:
+                            if extra_gp >= self.cfg.extra_gasprice_ceiling:
+                                break
+
+                            if (asset.timestamp - asset.time_last_pushed > 5) or (
                                 abs(asset.price - asset.last_pushed_price) > 0.05
-                        ):
-                            tx = build_tx(
-                                asset,
-                                nonce,
-                                new_gas_price=cfg.gasprice,
-                                extra_gas_price=extra_gp,
-                            )
-                            print("tx built")
+                            ):
+                                tx = self.build_tx(
+                                    asset,
+                                    nonce,
+                                    new_gas_price=self.cfg.gasprice,
+                                    extra_gas_price=extra_gp,
+                                )
 
-                            tx_signed = w3.eth.default_account.sign_transaction(tx)
-                            print("tx signed")
+                                tx_signed = (
+                                    self.w3.eth.default_account.sign_transaction(tx)
+                                )
 
-                            tx_hash = w3.eth.send_raw_transaction(
-                                tx_signed.rawTransaction
-                            )
-                            print("got tx hash")
+                                tx_hash = self.w3.eth.send_raw_transaction(
+                                    tx_signed.rawTransaction
+                                )
 
-                            _ = w3.eth.wait_for_transaction_receipt(
-                                tx_hash, timeout=360
-                            )
-                            print("got tx receipt, tx sent")
-                            nonce += 1
-                    except Exception as e:
-                        # traceback.print_exc()
-                        tb = str(traceback.format_exc())
-                        msg = str(e) + "\n"
-                        err_msg = str(e.args)
+                                _ = self.w3.eth.wait_for_transaction_receipt(
+                                    tx_hash, timeout=360
+                                )
+                                print("got tx receipt, tx sent")
+                                nonce += 1
+                        except Exception as e:
+                            # traceback.print_exc()
+                            tb = str(traceback.format_exc())
+                            msg = str(e) + "\n"
+                            err_msg = str(e.args)
 
-                        # increase gas price if transaction timeout
-                        if "timeout" in tb:
-                            extra_gp += cfg.error_gasprice
-                            msg += f"increased gas price by {cfg.error_gasprice} gwei"
+                            # increase gas price if transaction timeout
+                            if "timeout" in tb:
+                                extra_gp += self.cfg.error_gasprice
+                                msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                                continue
+
+                            # reduce gas price if over threshold
+                            elif "exceeds the configured cap" in err_msg:
+                                msg += "reducing gas price"
+                                extra_gp = 0.0
+
+                            elif "replacement transaction underpriced" in err_msg:
+                                extra_gp += self.cfg.error_gasprice
+                                msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+
+                            elif "nonce too low" in err_msg:
+                                msg += "increasing nonce"
+                                nonce += 1
+
+                            elif "insufficient funds" in err_msg:
+                                msg += f"Check {self.explorer}/address/{self.acc.address}\n"
+                                prev_alert = self.bot_alert(msg, prev_alert, asset)
+
+                            # nonce already used, leave while loop
+                            elif "already known" in err_msg:
+                                msg += f"skipping asset: {asset.name}"
+                                break
+
+                            # response from get_transaction_count or send_raw_transaction is None
+                            elif "result" in err_msg:
+                                msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
+
+                            # wait if error getting nonce with get_transaction_count
+                            elif "RPC Error" in err_msg or "RPCError" in err_msg:
+                                msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
+                                time.sleep(self.cfg.error_waittime)
+
+                            # wait if too may requests sent
+                            elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
+                                msg += (
+                                    f"too many requests in too little time. sleeping..."
+                                )
+                                time.sleep(self.cfg.error_waittime)
+
+                            else:
+                                msg = (
+                                    "UNKNOWN ERROR\n" + msg + tb
+                                )  # append traceback to alert if unknown error
+                                prev_alert = self.bot_alert(msg, prev_alert, asset)
+
                             continue
 
-                        # reduce gas price if over threshold
-                        elif "exceeds the configured cap" in err_msg:
-                            msg += "reducing gas price"
-                            extra_gp = 0.0
+                        break  # exit while loop if tx sent
 
-                        elif "replacement transaction underpriced" in err_msg:
-                            extra_gp += cfg.error_gasprice
-                            msg += f"increased gas price by {cfg.error_gasprice} gwei"
+                    print(asset)
 
-                        elif "nonce too low" in err_msg:
-                            msg += "increasing nonce"
-                            nonce += 1
+                    self.assets[i].last_pushed_price = asset.price
+                    self.assets[i].time_last_pushed = asset.timestamp
 
-                        elif "insufficient funds" in err_msg:
-                            msg += f"Check {explorer}/address/{acc.address}\n"
-                            prev_alert = bot_alert(msg, prev_alert, asset)
+                    print("sleeping...")
+                    # wait because contract only writes new values every 60 seconds
+                    time.sleep(20)
 
-                        # nonce already used, leave while loop
-                        elif "already known" in err_msg:
-                            msg += f"skipping asset: {asset.name}"
-                            break
+                    if self.w3.eth.get_balance(self.acc.address) < 0.005 * 1e18:
+                        msg = f"urgent: signer ran out out of ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        prev_alert = self.bot_alert(msg, prev_alert, asset)
+                        time.sleep(60 * 15)
 
-                        # response from get_transaction_count or send_raw_transaction is None
-                        elif "result" in err_msg:
-                            msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
-
-                        # wait if error getting nonce with get_transaction_count
-                        elif "RPC Error" in err_msg or "RPCError" in err_msg:
-                            msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
-                            time.sleep(cfg.error_waittime)
-
-                        # wait if too may requests sent
-                        elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
-                            msg += f"too many requests in too little time. sleeping..."
-                            time.sleep(cfg.error_waittime)
-
-                        else:
-                            msg = (
-                                    "UNKNOWN ERROR\n" + msg + tb
-                            )  # append traceback to alert if unknown error
-                            prev_alert = bot_alert(msg, prev_alert, asset)
-
-                        continue
-
-                    break  # exit while loop if tx sent
-
-                print(asset)
-
-                asset.last_pushed_price = asset.price
-                asset.time_last_pushed = asset.timestamp
-
-                print("sleeping...")
-                # wait because contract only writes new values every 60 seconds
-                time.sleep(20)
-
-                if w3.eth.get_balance(acc.address) < 0.005 * 1e18:
-                    msg = f"urgent: signer ran out out of ETH\nCheck {explorer}/address/{acc.address}"
-                    prev_alert = bot_alert(msg, prev_alert, asset)
-                    time.sleep(60 * 15)
-
-        except Exception as e:
-            tb = str(traceback.format_exc())
-            msg = str(e) + "\n" + tb
-            prev_alert = bot_alert(msg, prev_alert, current_asset)
-            continue
+            except Exception as e:
+                tb = str(traceback.format_exc())
+                msg = str(e) + "\n" + tb
+                prev_alert = self.bot_alert(msg, prev_alert, current_asset)
+                continue
 
 
-if __name__ == '__main__':
-
-    btc = Asset("BTCUSD", 2)
-    wbtc = Asset("WBTCUSD", 60)
-    eth = Asset("ETHUSD", 1)
-    dai = Asset("DAIUSD", 39)
-    eth_in_dai = Asset("ETHDAI", 1)
-
-    load_dotenv(find_dotenv())
-
-    with open("../TellorMesosphere.json") as f:
-        abi = f.read()
-
+if __name__ == "__main__":
     cfg = get_configs(sys.argv[1:])
-
-    network = cfg.network
-
-    node = cfg.networks[network].node
-    if network == "rinkeby":
-        node += os.getenv("INFURA_KEY")
-    explorer = cfg.networks[network].explorer
-    chain_id = cfg.networks[network].chain_id
-
-    w3 = Web3(Web3.HTTPProvider(node))
-
-    # choose network from CLI flag
-    if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-    mesosphere = w3.eth.contract(Web3.toChecksumAddress(cfg.address), abi=abi)
-    acc = w3.eth.default_account = w3.eth.account.from_key(os.getenv("PRIVATEKEY"))
-    print("your address", acc.address)
-    print("your balance", w3.eth.get_balance(acc.address))
-
-    bot = None
-    if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
-        bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
-
-    TellorSignerMain()
+    signer = TellorSigner(cfg)
+    signer.run()
