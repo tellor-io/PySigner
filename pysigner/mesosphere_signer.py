@@ -195,7 +195,7 @@ class TellorSigner:
     def bot_alert(self, msg: str, prev_msg: str, asset: Asset) -> str:
         print(msg)
         message = f"asset/ID: {asset.name}/{asset.request_id}\n" + msg
-        message = f"network: {self.network}\n" + message
+        message = f"network: {self.cfg.network}\n" + message
         message = f"owner pub key: {self.acc.address[:6]}...\n" + message
         message = f'bot name: {os.getenv("BOT_NAME")}\n' + message
         if message != prev_msg and self.bot != None:
@@ -305,6 +305,7 @@ class TellorSigner:
                             tb = str(traceback.format_exc())
                             msg = str(e) + "\n"
                             err_msg = str(e.args)
+                            err_log = msg + err_msg + tb
 
                             # increase gas price if transaction timeout
                             if "timeout" in tb:
@@ -335,11 +336,11 @@ class TellorSigner:
                                 break
 
                             # response from get_transaction_count or send_raw_transaction is None
-                            elif "result" in err_msg:
+                            elif "result" in err_log:
                                 msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
 
                             # wait if error getting nonce with get_transaction_count
-                            elif "RPC Error" in err_msg or "RPCError" in err_msg:
+                            elif "RPC Error" in err_log or "RPCError" in err_log:
                                 msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
                                 time.sleep(self.cfg.error_waittime)
 
