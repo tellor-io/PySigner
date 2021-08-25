@@ -6,7 +6,6 @@ error_gasprice: 20.
 extra_gasprice_ceiling: 200.
 error_waittime: 20
 receipt_timeout: 360
-tx_data_pathname: ../tx_data.csv
 
 # price data apis from centralized exchanges
 # a url to get price data and a list of keywords used to parse the received json
