@@ -19,21 +19,23 @@ import yaml
 
 
 # set up logging for transaction data
-tx_data_log = logging.getLogger('transactions')
+tx_data_log = logging.getLogger("transactions")
 tx_data_log.setLevel(logging.INFO)
 
-formatter = logging.Formatter('%(message)s')
-csv_handler = logging.FileHandler('./logs/tx_data.csv')
+formatter = logging.Formatter("%(message)s")
+csv_handler = logging.FileHandler("../pysigner/logs/tx_data.csv")
 csv_handler.setFormatter(formatter)
 
 tx_data_log.addHandler(csv_handler)
 
 # set up logging for expected TellorSigner info & errors
-signer_log = logging.getLogger('signer')
+signer_log = logging.getLogger("signer")
 signer_log.setLevel(logging.INFO)
 
-signer_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-log_handler = logging.FileHandler('./logs/signer.log')
+signer_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+log_handler = logging.FileHandler("../pysigner/logs/signer.log")
 log_handler.setFormatter(signer_formatter)
 
 signer_log.addHandler(log_handler)
@@ -172,7 +174,7 @@ def medianize(prices: List[float]) -> int:
 
 class TellorSigner:
     def __init__(self, cfg):
-        signer_log.info('starting TellorSigner')
+        signer_log.info("starting TellorSigner")
         self.cfg = cfg
 
         self.assets = [
@@ -208,25 +210,25 @@ class TellorSigner:
             os.getenv("PRIVATEKEY")
         )
 
-        signer_log.info(f'your address: {self.acc.address}')
+        signer_log.info(f"your address: {self.acc.address}")
         self.starting_balance = self.w3.eth.get_balance(self.acc.address)
-        signer_log.info(f'your balance: {self.starting_balance}')
+        signer_log.info(f"your balance: {self.starting_balance}")
 
         self.bot = None
         if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
             self.bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
 
     def bot_alert(self, msg: str, prev_msg: str, asset: Asset) -> str:
-        message = f'''
+        message = f"""
         bot name: {os.getenv("BOT_NAME")}
         owner pub key: {self.acc.address[:6]}...
         network: {self.cfg.network}
         asset/ID: {asset.name}/{asset.request_id}
         {msg}
-        '''
+        """
         if message != prev_msg and self.bot != None:
             self.bot.send_message(os.getenv("CHAT_ID"), message)
-            signer_log.info(f'telegram alert sent: \n{msg}')
+            signer_log.info(f"telegram alert sent: \n{msg}")
         return message
 
     def update_assets(self):
@@ -270,7 +272,7 @@ class TellorSigner:
         return transaction
 
     def log_tx(self, asset: Asset, tx_hash: HexBytes):
-        rows = f'{asset.timestamp},{asset.name},{asset.price},{asset.request_id},{tx_hash.hex()},{self.cfg.network}'
+        rows = f"{asset.timestamp},{asset.name},{asset.price},{asset.request_id},{tx_hash.hex()},{self.cfg.network}"
         tx_data_log.info(rows)
 
     def run(self):
@@ -299,8 +301,10 @@ class TellorSigner:
                     while True:
                         try:
                             if extra_gp >= self.cfg.extra_gasprice_ceiling:
-                                signer_log.info('exceeded gas price ceiling, resetting extra gas price')
-                                extra_gp = 0.
+                                signer_log.info(
+                                    "exceeded gas price ceiling, resetting extra gas price"
+                                )
+                                extra_gp = 0.0
                                 break
 
                             if (asset.timestamp - asset.time_last_pushed > 5) or (
@@ -320,7 +324,7 @@ class TellorSigner:
                                 tx_hash = self.w3.eth.send_raw_transaction(
                                     tx_signed.rawTransaction
                                 )
-                                print('waiting for tx receipt')
+                                print("waiting for tx receipt")
 
                                 _ = self.w3.eth.wait_for_transaction_receipt(
                                     tx_hash, timeout=self.cfg.receipt_timeout
