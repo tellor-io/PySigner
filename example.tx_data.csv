@@ -1,1 +1,1 @@
-timestamp,asset,price,request_id,tx_hash
+timestamp,asset_name,price,request_id,tx_hash,network
