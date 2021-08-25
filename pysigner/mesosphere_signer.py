@@ -332,8 +332,8 @@ if __name__ == '__main__':
     network = cfg.network
 
     node = cfg.networks[network].node
-    if network == "rinkeby":
-        node += os.getenv("INFURA_KEY")
+    if network == "polygon":
+        node += os.getenv("POKT_GATEWAY_ID")
     explorer = cfg.networks[network].explorer
     chain_id = cfg.networks[network].chain_id
 

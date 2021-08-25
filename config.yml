@@ -129,6 +129,6 @@ networks:
     chain_id: 80001
   
   polygon:
-    node: https://rpc-mainnet.maticvigil.com
+    node: https://poly-mainnet.gateway.pokt.network/v1/lb/
     explorer: https://polygonscan.com
     chain_id: 137
