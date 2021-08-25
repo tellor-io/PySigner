@@ -210,10 +210,6 @@ class TellorSigner:
             os.getenv("PRIVATEKEY")
         )
 
-        signer_log.info(f"your address: {self.acc.address}")
-        self.starting_balance = self.w3.eth.get_balance(self.acc.address)
-        signer_log.info(f"your balance: {self.starting_balance}")
-
         self.bot = None
         if os.getenv("TG_TOKEN") != None and os.getenv("CHAT_ID") != None:
             self.bot = telebot.TeleBot(os.getenv("TG_TOKEN"), parse_mode=None)
@@ -276,6 +272,10 @@ class TellorSigner:
         tx_data_log.info(rows)
 
     def run(self):
+        signer_log.info(f"your address: {self.acc.address}")
+        starting_balance = self.w3.eth.get_balance(self.acc.address)
+        signer_log.info(f"your balance: {starting_balance}")
+
         prev_alert = ""
         current_asset = None
         while True:
@@ -324,16 +324,16 @@ class TellorSigner:
                                 tx_hash = self.w3.eth.send_raw_transaction(
                                     tx_signed.rawTransaction
                                 )
-                                print("waiting for tx receipt")
 
+                                print("waiting for tx receipt")
                                 _ = self.w3.eth.wait_for_transaction_receipt(
                                     tx_hash, timeout=self.cfg.receipt_timeout
                                 )
                                 print("received, tx sent")
+
                                 self.log_tx(asset, tx_hash)
                                 nonce += 1
                         except Exception as e:
-                            # traceback.print_exc()
                             tb = str(traceback.format_exc())
                             msg = str(e) + "\n"
                             err_msg = str(e.args)
@@ -384,7 +384,7 @@ class TellorSigner:
                                 signer_log.info(msg)
                                 time.sleep(self.cfg.error_waittime)
 
-                            # wait if too may requests sent
+                            # wait if too many requests sent
                             elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
                                 msg += (
                                     f"too many requests in too little time. sleeping..."

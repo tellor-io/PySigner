@@ -86,7 +86,6 @@ def test_create_signer_instance():
     assert signer.secret_test == "passed"
     assert signer.acc.address != None
     assert signer.acc.address != ""
-    assert signer.starting_balance > 0
 
 
 def test_build_tx():
