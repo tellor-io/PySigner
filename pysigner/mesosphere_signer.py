@@ -23,7 +23,7 @@ tx_data_log = logging.getLogger("transactions")
 tx_data_log.setLevel(logging.INFO)
 
 formatter = logging.Formatter("%(message)s")
-csv_handler = logging.FileHandler("../pysigner/logs/tx_data.csv")
+csv_handler = logging.FileHandler("logs/tx_data.csv")
 csv_handler.setFormatter(formatter)
 
 tx_data_log.addHandler(csv_handler)
@@ -35,7 +35,7 @@ signer_log.setLevel(logging.INFO)
 signer_formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-log_handler = logging.FileHandler("../pysigner/logs/signer.log")
+log_handler = logging.FileHandler("logs/signer.log")
 log_handler.setFormatter(signer_formatter)
 
 signer_log.addHandler(log_handler)
@@ -45,7 +45,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("../config.yml", "r") as ymlfile:
+    with open("config.yml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
@@ -188,13 +188,13 @@ class TellorSigner:
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
-        with open("../TellorMesosphere.json") as f:
+        with open("TellorMesosphere.json") as f:
             abi = f.read()
 
         network = self.cfg.network
         node = self.cfg.networks[network].node
-        if network == "rinkeby":
-            node += os.getenv("INFURA_KEY")
+        if network == "polygon":
+            node += os.getenv("POKT_GATEWAY_ID")
         self.explorer = self.cfg.networks[network].explorer
         self.chain_id = self.cfg.networks[network].chain_id
 
