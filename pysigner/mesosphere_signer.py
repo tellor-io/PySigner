@@ -17,6 +17,9 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 import yaml
 
+# create logs folder/contents if it does not yet exist
+if not os.path.exists("logs/"):
+    os.makedirs("logs/")
 
 # set up logging for transaction data
 tx_data_log = logging.getLogger("transactions")
