@@ -412,7 +412,6 @@ class TellorSigner:
 
                 print("sleeping...")
                 # wait because contract only writes new values every 60 seconds
-                time.sleep(20)
 
                 if self.w3.eth.get_balance(self.acc.address) < 0.005 * 1e18:
                     msg = f"urgent: signer ran out out of ETH\nCheck {self.explorer}/address/{self.acc.address}"
