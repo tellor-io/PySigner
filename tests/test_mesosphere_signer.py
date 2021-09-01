@@ -31,7 +31,7 @@ def test_read_config_file():
     assert type(cfg.extra_gasprice_ceiling) == float
     assert type(cfg.error_waittime) == int
 
-    assert cfg.address == 0xACC2D27400029904919EA54FFC0B18BF07C57875  # tellor contract
+    assert cfg.address.polygon == "0xACC2d27400029904919ea54fFc0b18Bf07C57875"  # tellor contract
 
 
 def test_get_cl_config_args():
@@ -76,16 +76,22 @@ def test_medianize():
 
 
 def test_create_signer_instance():
-    cfg = get_configs([])
-    signer = TellorSigner(cfg)
 
-    assert (
-        signer.cfg.address == 0xACC2D27400029904919EA54FFC0B18BF07C57875
-    )  # tellor contract
-    assert signer.w3.isConnected() == True
-    assert signer.secret_test == "passed"
-    assert signer.acc.address != None
-    assert signer.acc.address != ""
+    def create_signer_on_network(network, contract_address):
+        cfg = get_configs(["-n", network])
+        signer = TellorSigner(cfg)
+        network = cfg["network"]
+
+        assert (
+            signer.cfg.address[network] == contract_address
+        )  # tellor contract
+        assert signer.w3.isConnected() == True
+        assert signer.secret_test == "passed"
+        assert signer.acc.address != None
+        assert signer.acc.address != ""
+
+    create_signer_on_network("polygon", "0xACC2d27400029904919ea54fFc0b18Bf07C57875")
+    create_signer_on_network("rinkeby", "0xAE50BA0d54610898e078EE0D39dB0a7654968551")
 
 
 def test_build_tx():
