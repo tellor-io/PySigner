@@ -197,7 +197,9 @@ class TellorSigner:
         network = self.cfg.network
         node = self.cfg.networks[network].node
         if network == "polygon":
-            node += os.getenv("POKT_GATEWAY_ID")
+            node += os.getenv("POKT_POLYGON")
+        if network == "rinkeby":
+            node += os.getenv("POKT_RINKEBY")
         self.explorer = self.cfg.networks[network].explorer
         self.chain_id = self.cfg.networks[network].chain_id
 
@@ -207,7 +209,7 @@ class TellorSigner:
         if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
             self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         self.mesosphere = self.w3.eth.contract(
-            Web3.toChecksumAddress(self.cfg.address), abi=abi
+            Web3.toChecksumAddress(self.cfg.address[network]), abi=abi
         )
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
             os.getenv("PRIVATEKEY")
