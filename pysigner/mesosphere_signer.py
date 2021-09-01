@@ -18,12 +18,17 @@ from web3.middleware import geth_poa_middleware
 import yaml
 
 
+# create logs folder/contents if it does not yet exist
+if not os.path.exists("logs/"):
+    os.makedirs("logs/")
+
+
 # set up logging for transaction data
 tx_data_log = logging.getLogger("transactions")
 tx_data_log.setLevel(logging.INFO)
 
 formatter = logging.Formatter("%(message)s")
-csv_handler = logging.FileHandler("../pysigner/logs/tx_data.csv")
+csv_handler = logging.FileHandler("logs/tx_data.csv")
 csv_handler.setFormatter(formatter)
 
 tx_data_log.addHandler(csv_handler)
@@ -35,7 +40,7 @@ signer_log.setLevel(logging.INFO)
 signer_formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-log_handler = logging.FileHandler("../pysigner/logs/signer.log")
+log_handler = logging.FileHandler("logs/signer.log")
 log_handler.setFormatter(signer_formatter)
 
 signer_log.addHandler(log_handler)
@@ -45,7 +50,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("../config.yml", "r") as ymlfile:
+    with open("config.yml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
@@ -188,13 +193,15 @@ class TellorSigner:
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
-        with open("../TellorMesosphere.json") as f:
+        with open("TellorMesosphere.json") as f:
             abi = f.read()
 
         network = self.cfg.network
         node = self.cfg.networks[network].node
         if network == "rinkeby":
             node += os.getenv("INFURA_KEY")
+        if network == "polygon":
+            node += os.getenv("POKT_GATEWAY_ID")
         self.explorer = self.cfg.networks[network].explorer
         self.chain_id = self.cfg.networks[network].chain_id
 
@@ -287,12 +294,6 @@ class TellorSigner:
                 for i, asset in enumerate(self.assets):
                     current_asset = asset
                     print("nonce:", nonce)
-
-                    # if signer balance is less than half an ether, send alert
-                    if self.w3.eth.get_balance(self.acc.address) < 5e14:
-                        msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
-                        signer_log.warning(msg)
-                        prev_alert = self.bot_alert(msg, prev_alert, asset)
 
                     extra_gp = (
                         0.0  # added to gas price to speed up tx if gas price too low
