@@ -1,12 +1,10 @@
-from pysigner.mesosphere_signer import (
-    Asset,
-    get_configs,
-    get_price,
-    medianize,
-    medianize_eth_dai,
-    medianize_prices,
-    TellorSigner,
-)
+from pysigner.mesosphere_signer import Asset
+from pysigner.mesosphere_signer import get_configs
+from pysigner.mesosphere_signer import get_price
+from pysigner.mesosphere_signer import medianize
+from pysigner.mesosphere_signer import medianize_eth_dai
+from pysigner.mesosphere_signer import medianize_prices
+from pysigner.mesosphere_signer import TellorSigner
 
 
 def test_asset():
@@ -98,31 +96,31 @@ def test_send_tx():
     pass
 
 
-def test_submit_tx_rinkeby():
-    cfg = get_configs(['-n', 'rinkeby'])
-    signer = TellorSigner(cfg)
+# def test_submit_tx_rinkeby():
+#     cfg = get_configs(['-n', 'rinkeby'])
+#     signer = TellorSigner(cfg)
 
-    signer.update_assets()
-    nonce = signer.w3.eth.get_transaction_count(signer.acc.address)
+#     signer.update_assets()
+#     nonce = signer.w3.eth.get_transaction_count(signer.acc.address)
 
-    tx = signer.build_tx(
-        signer.assets[0],
-        nonce,
-        new_gas_price=signer.cfg.gasprice,
-        extra_gas_price=0.,
-    )
+#     tx = signer.build_tx(
+#         signer.assets[0],
+#         nonce,
+#         new_gas_price=signer.cfg.gasprice,
+#         extra_gas_price=0.,
+#     )
 
-    tx_signed = (
-        signer.w3.eth.default_account.sign_transaction(tx)
-    )
+#     tx_signed = (
+#         signer.w3.eth.default_account.sign_transaction(tx)
+#     )
 
-    tx_hash = signer.w3.eth.send_raw_transaction(
-        tx_signed.rawTransaction
-    )
+#     tx_hash = signer.w3.eth.send_raw_transaction(
+#         tx_signed.rawTransaction
+#     )
 
-    # print("waiting for tx receipt")
-    receipt = signer.w3.eth.wait_for_transaction_receipt(
-        tx_hash, timeout=signer.cfg.receipt_timeout
-    )
-    # print("received, tx sent")
-    assert receipt != None
+#     # print("waiting for tx receipt")
+#     receipt = signer.w3.eth.wait_for_transaction_receipt(
+#         tx_hash, timeout=signer.cfg.receipt_timeout
+#     )
+#     # print("received, tx sent")
+#     assert receipt != None

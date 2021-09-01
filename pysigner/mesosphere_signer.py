@@ -2,20 +2,21 @@ import argparse
 import csv
 import logging
 import os
-import requests
 import sys
 import time
 import traceback
+from typing import Dict
+from typing import List
 
-from hexbytes import HexBytes
-from typing import Dict, List
-
-from box import Box
-from dotenv import load_dotenv, find_dotenv
+import requests
 import telebot
+import yaml
+from box import Box
+from dotenv import find_dotenv
+from dotenv import load_dotenv
+from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
-import yaml
 
 # create logs folder/contents if it does not yet exist
 if not os.path.exists("logs/"):
@@ -53,7 +54,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("config.yml", "r") as ymlfile:
+    with open("config.yaml") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
