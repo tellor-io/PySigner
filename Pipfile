@@ -13,12 +13,11 @@ sympy = "*"
 ecdsa = "*"
 python-decouple = "*"
 pytelegrambotapi = "*"
-pytest = "*"
 pyyaml = "*"
 python-box = "*"
-black = "*"
 
 [dev-packages]
+pytest = "*"
 
 [requires]
 python_version = "3.8"

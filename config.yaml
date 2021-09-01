@@ -36,7 +36,7 @@ apis:
         - TBTCUSD
         - c
         - 0
-  
+
   WBTCUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/WBTC-USD/ticker
@@ -59,7 +59,7 @@ apis:
         - WBTCUSD
         - c
         - 0
-  
+
   ETHUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/ETH-USD/ticker
@@ -86,7 +86,7 @@ apis:
         - ETHUSDC
         - c
         - 0
-  
+
   DAIUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/DAI-USD/ticker
@@ -123,12 +123,12 @@ networks:
     node: https://rinkeby.infura.io/v3/
     explorer: https://rinkeby.etherscan.io/
     chain_id: 4
-  
+
   mumbai:
     node: https://rpc-mumbai.matic.today
     explorer: https://mumbai.polygonscan.com/
     chain_id: 80001
-  
+
   polygon:
     node: https://poly-mainnet.gateway.pokt.network/v1/lb/
     explorer: https://polygonscan.com

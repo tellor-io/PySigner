@@ -2,8 +2,9 @@ import argparse
 import json
 import os
 
-from dotenv import load_dotenv, find_dotenv
 import telebot
+from dotenv import find_dotenv
+from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
