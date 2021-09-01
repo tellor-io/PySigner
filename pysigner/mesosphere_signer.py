@@ -54,7 +54,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("config.yaml") as ymlfile:
+    with open("config.yml") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
@@ -82,6 +82,14 @@ def get_configs(args: List[str]) -> Box:
         required=False,
         type=float,
         help="Extra gwei added to gas price if gas price too low.",
+    )
+    parser.add_argument(
+        "-pk",
+        "--private-key",
+        nargs=1,
+        required=False,
+        type=str,
+        help="an ethereum private key",
     )
 
     # get dict of parsed args
@@ -182,7 +190,7 @@ def medianize(prices: List[float]) -> int:
 
 
 class TellorSigner:
-    def __init__(self, cfg):
+    def __init__(self, cfg, private_key):
         signer_log.info("starting TellorSigner")
         self.cfg = cfg
 
@@ -197,13 +205,13 @@ class TellorSigner:
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
+        self.private_key = private_key
+
         with open("TellorMesosphere.json") as f:
             abi = f.read()
 
         network = self.cfg.network
         node = self.cfg.networks[network].node
-        if network == "rinkeby":
-            node += os.getenv("INFURA_KEY")
         if network == "polygon":
             node += os.getenv("POKT_POLYGON")
         if network == "rinkeby":
@@ -220,7 +228,7 @@ class TellorSigner:
             Web3.toChecksumAddress(self.cfg.address[network]), abi=abi
         )
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
-            os.getenv("PRIVATEKEY")
+            self.private_key
         )
 
         self.bot = None

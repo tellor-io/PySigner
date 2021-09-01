@@ -15,6 +15,7 @@ pytelegrambotapi = "*"
 pyyaml = "*"
 python-box = "*"
 schedule = "*"
+python-crontab = "*"
 
 [dev-packages]
 pytest = "*"
