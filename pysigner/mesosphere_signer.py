@@ -2,24 +2,30 @@ import argparse
 import csv
 import logging
 import os
-import requests
 import sys
 import time
 import traceback
+from typing import Dict
+from typing import List
 
-from hexbytes import HexBytes
-from typing import Dict, List
-
-from box import Box
-from dotenv import load_dotenv, find_dotenv
+import requests
 import telebot
+import yaml
+from box import Box
+from dotenv import find_dotenv
+from dotenv import load_dotenv
+from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
-import yaml
 
 # create logs folder/contents if it does not yet exist
 if not os.path.exists("logs/"):
     os.makedirs("logs/")
+
+# create logs folder/contents if it does not yet exist
+if not os.path.exists("logs/"):
+    os.makedirs("logs/")
+
 
 # set up logging for transaction data
 tx_data_log = logging.getLogger("transactions")
@@ -48,7 +54,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("config.yml", "r") as ymlfile:
+    with open("config.yaml") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
@@ -196,6 +202,8 @@ class TellorSigner:
 
         network = self.cfg.network
         node = self.cfg.networks[network].node
+        if network == "rinkeby":
+            node += os.getenv("INFURA_KEY")
         if network == "polygon":
             node += os.getenv("POKT_POLYGON")
         if network == "rinkeby":
@@ -298,9 +306,7 @@ class TellorSigner:
                     signer_log.warning(msg)
                     prev_alert = self.bot_alert(msg, prev_alert, asset)
 
-                extra_gp = (
-                    0.0  # added to gas price to speed up tx if gas price too low
-                )
+                extra_gp = 0.0  # added to gas price to speed up tx if gas price too low
 
                 while True:
                     try:
@@ -321,9 +327,7 @@ class TellorSigner:
                                 extra_gas_price=extra_gp,
                             )
 
-                            tx_signed = (
-                                self.w3.eth.default_account.sign_transaction(tx)
-                            )
+                            tx_signed = self.w3.eth.default_account.sign_transaction(tx)
 
                             tx_hash = self.w3.eth.send_raw_transaction(
                                 tx_signed.rawTransaction
@@ -346,7 +350,9 @@ class TellorSigner:
                         # increase gas price if transaction timeout
                         if "timeout" in tb:
                             extra_gp += self.cfg.error_gasprice
-                            msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                            msg += (
+                                f"increased gas price by {self.cfg.error_gasprice} gwei"
+                            )
                             signer_log.info(msg)
                             continue
 
@@ -358,7 +364,9 @@ class TellorSigner:
 
                         elif "replacement transaction underpriced" in err_msg:
                             extra_gp += self.cfg.error_gasprice
-                            msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                            msg += (
+                                f"increased gas price by {self.cfg.error_gasprice} gwei"
+                            )
                             signer_log.info(msg)
 
                         elif "nonce too low" in err_msg:
@@ -390,9 +398,7 @@ class TellorSigner:
 
                         # wait if too many requests sent
                         elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
-                            msg += (
-                                f"too many requests in too little time. sleeping..."
-                            )
+                            msg += f"too many requests in too little time. sleeping..."
                             signer_log.info(msg)
                             time.sleep(self.cfg.error_waittime)
 

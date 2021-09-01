@@ -13,4 +13,4 @@ while True:
     except KeyboardInterrupt:
         break
     except:
-        continue # this needs to be built out. for now, just catching exceptions to prevent termination
+        continue  # this needs to be built out. for now, just catching exceptions to prevent termination

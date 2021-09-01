@@ -1,8 +1,11 @@
-import time, requests, os
+import os
+import time
 
+import requests
+from dotenv import find_dotenv
+from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
-from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 

@@ -12,12 +12,12 @@ mpmath = "*"
 sympy = "*"
 ecdsa = "*"
 pytelegrambotapi = "*"
-pytest = "*"
 pyyaml = "*"
 python-box = "*"
 schedule = "*"
 
 [dev-packages]
+pytest = "*"
 
 [requires]
 python_version = "3.8"

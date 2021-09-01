@@ -1,12 +1,10 @@
-from pysigner.mesosphere_signer import (
-    Asset,
-    get_configs,
-    get_price,
-    medianize,
-    medianize_eth_dai,
-    medianize_prices,
-    TellorSigner,
-)
+from pysigner.mesosphere_signer import Asset
+from pysigner.mesosphere_signer import get_configs
+from pysigner.mesosphere_signer import get_price
+from pysigner.mesosphere_signer import medianize
+from pysigner.mesosphere_signer import medianize_eth_dai
+from pysigner.mesosphere_signer import medianize_prices
+from pysigner.mesosphere_signer import TellorSigner
 
 
 def test_asset():
@@ -31,7 +29,9 @@ def test_read_config_file():
     assert type(cfg.extra_gasprice_ceiling) == float
     assert type(cfg.error_waittime) == int
 
-    assert cfg.address.polygon == "0xACC2d27400029904919ea54fFc0b18Bf07C57875"  # tellor contract
+    assert (
+        cfg.address.polygon == "0xACC2d27400029904919ea54fFc0b18Bf07C57875"
+    )  # tellor contract
 
 
 def test_get_cl_config_args():
@@ -76,15 +76,12 @@ def test_medianize():
 
 
 def test_create_signer_instance():
-
     def create_signer_on_network(network, contract_address):
         cfg = get_configs(["-n", network])
         signer = TellorSigner(cfg)
         network = cfg["network"]
 
-        assert (
-            signer.cfg.address[network] == contract_address
-        )  # tellor contract
+        assert signer.cfg.address[network] == contract_address  # tellor contract
         assert signer.w3.isConnected() == True
         assert signer.secret_test == "passed"
         assert signer.acc.address != None
@@ -102,3 +99,33 @@ def test_build_tx():
 def test_send_tx():
     # send single tx
     pass
+
+
+# def test_submit_tx_rinkeby():
+#     cfg = get_configs(['-n', 'rinkeby'])
+#     signer = TellorSigner(cfg)
+
+#     signer.update_assets()
+#     nonce = signer.w3.eth.get_transaction_count(signer.acc.address)
+
+#     tx = signer.build_tx(
+#         signer.assets[0],
+#         nonce,
+#         new_gas_price=signer.cfg.gasprice,
+#         extra_gas_price=0.,
+#     )
+
+#     tx_signed = (
+#         signer.w3.eth.default_account.sign_transaction(tx)
+#     )
+
+#     tx_hash = signer.w3.eth.send_raw_transaction(
+#         tx_signed.rawTransaction
+#     )
+
+#     # print("waiting for tx receipt")
+#     receipt = signer.w3.eth.wait_for_transaction_receipt(
+#         tx_hash, timeout=signer.cfg.receipt_timeout
+#     )
+#     # print("received, tx sent")
+#     assert receipt != None
