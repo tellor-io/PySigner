@@ -205,8 +205,6 @@ class TellorSigner:
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
-        self.private_key = private_key
-
         with open("TellorMesosphere.json") as f:
             abi = f.read()
 
@@ -228,7 +226,7 @@ class TellorSigner:
             Web3.toChecksumAddress(self.cfg.address[network]), abi=abi
         )
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
-            self.private_key
+            private_key if private_key else os.getenv("PRIVATE_KEYS")
         )
 
         self.bot = None
