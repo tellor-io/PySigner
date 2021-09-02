@@ -36,7 +36,7 @@ apis:
         - TBTCUSD
         - c
         - 0
-  
+
   WBTCUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/WBTC-USD/ticker
@@ -59,7 +59,7 @@ apis:
         - WBTCUSD
         - c
         - 0
-  
+
   ETHUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/ETH-USD/ticker
@@ -86,7 +86,7 @@ apis:
         - ETHUSDC
         - c
         - 0
-  
+
   DAIUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/DAI-USD/ticker
@@ -115,7 +115,7 @@ apis:
         - 0
 
 # tellor contract
-address: 
+address:
   polygon: "0xACC2d27400029904919ea54fFc0b18Bf07C57875"
   rinkeby: "0xAE50BA0d54610898e078EE0D39dB0a7654968551"
 
@@ -125,12 +125,12 @@ networks:
     node: https://eth-rinkeby.gateway.pokt.network/v1/lb/
     explorer: https://rinkeby.etherscan.io/
     chain_id: 4
-  
+
   mumbai:
     node: https://rpc-mumbai.matic.today
     explorer: https://mumbai.polygonscan.com/
     chain_id: 80001
-  
+
   polygon:
     node: https://poly-mainnet.gateway.pokt.network/v1/lb/
     explorer: https://polygonscan.com
