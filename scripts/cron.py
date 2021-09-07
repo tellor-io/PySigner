@@ -1,23 +1,27 @@
+import multiprocessing
 import os
+import sys
 import threading
+import traceback
 
-import schedule
-
-from .run_signer import run_signer
-
-
-def run_threaded(job_func):
-    job_thread = threading.Thread(target=job_func)
-    job_thread.start()
+from pysigner.mesosphere_signer import get_configs
+from pysigner.mesosphere_signer import TellorSigner
 
 
-for private_key in os.getenv("PRIVATEKEY").split(","):
-    schedule.every(10).seconds.do(run_threaded, run_signer(private_key))
+def run_signer(private_key):
+    """
+    Starts mesosphere_signer.py with a provided private key
+    """
+    cfg = get_configs(sys.argv[1:])
+    signer = TellorSigner(cfg, private_key)
+    signer.run()
 
-while True:
-    try:
-        schedule.run_pending()
-    except KeyboardInterrupt:
-        break
-    except:
-        continue  # this needs to be built out. for now, just catching exceptions to prevent termination
+
+if __name__ == "__main__":
+    for private_key in os.getenv("PRIVATEKEY").split(","):
+        try:
+            multiprocessing.Process(target=run_signer, args=(private_key,)).start()
+        except multiprocessing.ProcessError as e:
+            tb = str(traceback.format_exc())
+            msg = str(e) + "\n" + tb
+            print(msg)

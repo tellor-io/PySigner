@@ -205,8 +205,6 @@ class TellorSigner:
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
-        self.private_key = private_key
-
         with open("TellorMesosphere.json") as f:
             abi = f.read()
 
@@ -228,7 +226,7 @@ class TellorSigner:
             Web3.toChecksumAddress(self.cfg.address[network]), abi=abi
         )
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
-            self.private_key
+            private_key if private_key else os.getenv("PRIVATE_KEYS")
         )
 
         self.bot = None
@@ -299,148 +297,151 @@ class TellorSigner:
 
         prev_alert = ""
         current_asset = None
-        try:
-            self.update_assets()
+        while True:
+            try:
+                self.update_assets()
 
-            nonce = self.w3.eth.get_transaction_count(self.acc.address)
+                nonce = self.w3.eth.get_transaction_count(self.acc.address)
 
-            for i, asset in enumerate(self.assets):
-                current_asset = asset
-                print("nonce:", nonce)
+                for i, asset in enumerate(self.assets):
+                    current_asset = asset
+                    print("nonce:", nonce)
 
-                # if signer balance is less than half an ether, send alert
-                if self.w3.eth.get_balance(self.acc.address) < 5e14:
-                    msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
-                    signer_log.warning(msg)
-                    prev_alert = self.bot_alert(msg, prev_alert, asset)
+                    # if signer balance is less than half an ether, send alert
+                    if self.w3.eth.get_balance(self.acc.address) < 5e14:
+                        msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        signer_log.warning(msg)
+                        prev_alert = self.bot_alert(msg, prev_alert, asset)
 
-                extra_gp = 0.0  # added to gas price to speed up tx if gas price too low
+                    extra_gp = (
+                        0.0  # added to gas price to speed up tx if gas price too low
+                    )
 
-                while True:
-                    try:
-                        if extra_gp >= self.cfg.extra_gasprice_ceiling:
-                            signer_log.info(
-                                "exceeded gas price ceiling, resetting extra gas price"
-                            )
-                            extra_gp = 0.0
-                            break
+                    while True:
+                        try:
+                            if extra_gp >= self.cfg.extra_gasprice_ceiling:
+                                signer_log.info(
+                                    "exceeded gas price ceiling, resetting extra gas price"
+                                )
+                                extra_gp = 0.0
+                                break
 
-                        if (asset.timestamp - asset.time_last_pushed > 5) or (
-                            abs(asset.price - asset.last_pushed_price) > 0.05
-                        ):
-                            tx = self.build_tx(
-                                asset,
-                                nonce,
-                                new_gas_price=self.cfg.gasprice,
-                                extra_gas_price=extra_gp,
-                            )
+                            if (asset.timestamp - asset.time_last_pushed > 5) or (
+                                abs(asset.price - asset.last_pushed_price) > 0.05
+                            ):
+                                tx = self.build_tx(
+                                    asset,
+                                    nonce,
+                                    new_gas_price=self.cfg.gasprice,
+                                    extra_gas_price=extra_gp,
+                                )
 
-                            tx_signed = self.w3.eth.default_account.sign_transaction(tx)
+                                tx_signed = (
+                                    self.w3.eth.default_account.sign_transaction(tx)
+                                )
 
-                            tx_hash = self.w3.eth.send_raw_transaction(
-                                tx_signed.rawTransaction
-                            )
+                                tx_hash = self.w3.eth.send_raw_transaction(
+                                    tx_signed.rawTransaction
+                                )
 
-                            print("waiting for tx receipt")
-                            _ = self.w3.eth.wait_for_transaction_receipt(
-                                tx_hash, timeout=self.cfg.receipt_timeout
-                            )
-                            print("received, tx sent")
+                                print("waiting for tx receipt")
+                                _ = self.w3.eth.wait_for_transaction_receipt(
+                                    tx_hash, timeout=self.cfg.receipt_timeout
+                                )
+                                print("received, tx sent")
 
-                            self.log_tx(asset, tx_hash)
-                            nonce += 1
-                    except Exception as e:
-                        tb = str(traceback.format_exc())
-                        msg = str(e) + "\n"
-                        err_msg = str(e.args)
-                        err_log = msg + err_msg + tb
+                                self.log_tx(asset, tx_hash)
+                                nonce += 1
+                        except Exception as e:
+                            tb = str(traceback.format_exc())
+                            msg = str(e) + "\n"
+                            err_msg = str(e.args)
+                            err_log = msg + err_msg + tb
 
-                        # increase gas price if transaction timeout
-                        if "timeout" in tb:
-                            extra_gp += self.cfg.error_gasprice
-                            msg += (
-                                f"increased gas price by {self.cfg.error_gasprice} gwei"
-                            )
-                            signer_log.info(msg)
+                            # increase gas price if transaction timeout
+                            if "timeout" in tb:
+                                extra_gp += self.cfg.error_gasprice
+                                msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                                signer_log.info(msg)
+                                continue
+
+                            # reduce gas price if over threshold
+                            elif "exceeds the configured cap" in err_msg:
+                                msg += "reducing gas price"
+                                extra_gp = 0.0
+                                signer_log.info(msg)
+
+                            elif "replacement transaction underpriced" in err_msg:
+                                extra_gp += self.cfg.error_gasprice
+                                msg += f"increased gas price by {self.cfg.error_gasprice} gwei"
+                                signer_log.info(msg)
+
+                            elif "nonce too low" in err_msg:
+                                msg += "increasing nonce"
+                                nonce += 1
+                                signer_log.info(msg)
+
+                            elif "insufficient funds" in err_msg:
+                                msg += f"Check {self.explorer}/address/{self.acc.address}\n"
+                                signer_log.warning(msg)
+                                prev_alert = self.bot_alert(msg, prev_alert, asset)
+
+                            # nonce already used, leave while loop
+                            elif "already known" in err_msg:
+                                msg += f"skipping asset: {asset.name}"
+                                signer_log.info(msg)
+                                break
+
+                            # response from get_transaction_count or send_raw_transaction is None
+                            elif "result" in err_log:
+                                msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
+                                signer_log.info(msg)
+
+                            # wait if error getting nonce with get_transaction_count
+                            elif "RPC Error" in err_log or "RPCError" in err_log:
+                                msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
+                                signer_log.info(msg)
+                                time.sleep(self.cfg.error_waittime)
+
+                            # wait if too many requests sent
+                            elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
+                                msg += (
+                                    f"too many requests in too little time. sleeping..."
+                                )
+                                signer_log.info(msg)
+                                time.sleep(self.cfg.error_waittime)
+
+                            else:
+                                msg = (
+                                    "UNKNOWN ERROR\n" + msg + tb
+                                )  # append traceback to alert if unknown error
+                                signer_log.error(msg)
+                                prev_alert = self.bot_alert(msg, prev_alert, asset)
+
                             continue
 
-                        # reduce gas price if over threshold
-                        elif "exceeds the configured cap" in err_msg:
-                            msg += "reducing gas price"
-                            extra_gp = 0.0
-                            signer_log.info(msg)
+                        break  # exit while loop if tx sent
 
-                        elif "replacement transaction underpriced" in err_msg:
-                            extra_gp += self.cfg.error_gasprice
-                            msg += (
-                                f"increased gas price by {self.cfg.error_gasprice} gwei"
-                            )
-                            signer_log.info(msg)
+                    print(asset)
 
-                        elif "nonce too low" in err_msg:
-                            msg += "increasing nonce"
-                            nonce += 1
-                            signer_log.info(msg)
+                    self.assets[i].last_pushed_price = asset.price
+                    self.assets[i].time_last_pushed = asset.timestamp
 
-                        elif "insufficient funds" in err_msg:
-                            msg += f"Check {self.explorer}/address/{self.acc.address}\n"
-                            signer_log.warning(msg)
-                            prev_alert = self.bot_alert(msg, prev_alert, asset)
+                    print("sleeping...")
+                    # wait because contract only writes new values every 60 seconds
 
-                        # nonce already used, leave while loop
-                        elif "already known" in err_msg:
-                            msg += f"skipping asset: {asset.name}"
-                            signer_log.info(msg)
-                            break
+                    curr_balance = self.w3.eth.get_balance(self.acc.address)
+                    if curr_balance < 0.005 * 1e18:
+                        msg = f"urgent: refill balance now (currently: {curr_balance}) \nCheck {self.explorer}/address/{self.acc.address}"
+                        signer_log.warning(msg)
+                        prev_alert = self.bot_alert(msg, prev_alert, asset)
+                        time.sleep(60 * 15)
 
-                        # response from get_transaction_count or send_raw_transaction is None
-                        elif "result" in err_log:
-                            msg += f"empty response from w3.eth.get_transaction_count(acc.address)"
-                            signer_log.info(msg)
-
-                        # wait if error getting nonce with get_transaction_count
-                        elif "RPC Error" in err_log or "RPCError" in err_log:
-                            msg += f"RPC Error from w3.eth.get_transaction_count(acc.address)"
-                            signer_log.info(msg)
-                            time.sleep(self.cfg.error_waittime)
-
-                        # wait if too many requests sent
-                        elif "https://rpc-mainnet.maticvigil.com/" in err_msg:
-                            msg += f"too many requests in too little time. sleeping..."
-                            signer_log.info(msg)
-                            time.sleep(self.cfg.error_waittime)
-
-                        else:
-                            msg = (
-                                "UNKNOWN ERROR\n" + msg + tb
-                            )  # append traceback to alert if unknown error
-                            signer_log.error(msg)
-                            prev_alert = self.bot_alert(msg, prev_alert, asset)
-
-                        continue
-
-                    break  # exit while loop if tx sent
-
-                print(asset)
-
-                self.assets[i].last_pushed_price = asset.price
-                self.assets[i].time_last_pushed = asset.timestamp
-
-                print("sleeping...")
-                # wait because contract only writes new values every 60 seconds
-
-                curr_balance = self.w3.eth.get_balance(self.acc.address)
-                if curr_balance < 0.005 * 1e18:
-                    msg = f"urgent: refill balance now (currently: {curr_balance}) \nCheck {self.explorer}/address/{self.acc.address}"
-                    signer_log.warning(msg)
-                    prev_alert = self.bot_alert(msg, prev_alert, asset)
-                    time.sleep(60 * 15)
-
-        except Exception as e:
-            tb = str(traceback.format_exc())
-            msg = str(e) + "\n" + tb
-            signer_log.error(msg)
-            prev_alert = self.bot_alert(msg, prev_alert, current_asset)
+            except Exception as e:
+                tb = str(traceback.format_exc())
+                msg = str(e) + "\n" + tb
+                signer_log.error(msg)
+                prev_alert = self.bot_alert(msg, prev_alert, current_asset)
 
 
 if __name__ == "__main__":
