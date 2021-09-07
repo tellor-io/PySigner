@@ -28,7 +28,7 @@ TellorSigner reads api keys and other user secrets from a `.env` file. Rename `.
 ### Usage
 The main script for signing price data can be run with:
 ```
-pipenv run python ./pysigner/mesosphere_signer.py
+pipenv run python -m scripts.cron
 ```
 To run the script continuously in the background, you can use a linux [AWS instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html) and the built in [screen](https://ss64.com/bash/screen.html) utility.
 
