@@ -1,3 +1,5 @@
+import os
+
 from pysigner.mesosphere_signer import Asset
 from pysigner.mesosphere_signer import get_configs
 from pysigner.mesosphere_signer import get_price
@@ -29,7 +31,9 @@ def test_read_config_file():
     assert type(cfg.extra_gasprice_ceiling) == float
     assert type(cfg.error_waittime) == int
 
-    assert cfg.address == 0xACC2D27400029904919EA54FFC0B18BF07C57875  # tellor contract
+    assert (
+        cfg.address.polygon == "0xACC2d27400029904919ea54fFc0b18Bf07C57875"
+    )  # tellor contract
 
 
 def test_get_cl_config_args():
@@ -74,16 +78,20 @@ def test_medianize():
 
 
 def test_create_signer_instance():
-    cfg = get_configs([])
-    signer = TellorSigner(cfg)
+    def create_signer_on_network(network, contract_address):
+        private_key = os.getenv("PRIVATEKEY").split(",")[0]
+        cfg = get_configs(["-n", network])
+        signer = TellorSigner(cfg, private_key=private_key)
+        network = cfg["network"]
 
-    assert (
-        signer.cfg.address == 0xACC2D27400029904919EA54FFC0B18BF07C57875
-    )  # tellor contract
-    assert signer.w3.isConnected() == True
-    assert signer.secret_test == "passed"
-    assert signer.acc.address != None
-    assert signer.acc.address != ""
+        assert signer.cfg.address[network] == contract_address  # tellor contract
+        # assert signer.w3.isConnected() == True
+        assert signer.secret_test == "passed"
+        assert signer.acc.address != None
+        assert signer.acc.address != ""
+
+    create_signer_on_network("polygon", "0xACC2d27400029904919ea54fFc0b18Bf07C57875")
+    create_signer_on_network("rinkeby", "0xAE50BA0d54610898e078EE0D39dB0a7654968551")
 
 
 def test_build_tx():

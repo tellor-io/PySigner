@@ -11,10 +11,11 @@ python-dotenv = "*"
 mpmath = "*"
 sympy = "*"
 ecdsa = "*"
-python-decouple = "*"
 pytelegrambotapi = "*"
 pyyaml = "*"
 python-box = "*"
+schedule = "*"
+python-crontab = "*"
 
 [dev-packages]
 pytest = "*"

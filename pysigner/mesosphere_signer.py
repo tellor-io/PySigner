@@ -54,7 +54,7 @@ def get_configs(args: List[str]) -> Box:
     """get all signer configurations from passed flags or yaml file"""
 
     # read in configurations from yaml file
-    with open("config.yaml") as ymlfile:
+    with open("config.yml") as ymlfile:
         config = yaml.safe_load(ymlfile)
 
     # parse command line flags & arguments
@@ -82,6 +82,14 @@ def get_configs(args: List[str]) -> Box:
         required=False,
         type=float,
         help="Extra gwei added to gas price if gas price too low.",
+    )
+    parser.add_argument(
+        "-pk",
+        "--private-key",
+        nargs=1,
+        required=False,
+        type=str,
+        help="an ethereum private key",
     )
 
     # get dict of parsed args
@@ -182,7 +190,7 @@ def medianize(prices: List[float]) -> int:
 
 
 class TellorSigner:
-    def __init__(self, cfg):
+    def __init__(self, cfg, private_key):
         signer_log.info("starting TellorSigner")
         self.cfg = cfg
 
@@ -202,10 +210,10 @@ class TellorSigner:
 
         network = self.cfg.network
         node = self.cfg.networks[network].node
-        if network == "rinkeby":
-            node += os.getenv("INFURA_KEY")
         if network == "polygon":
-            node += os.getenv("POKT_GATEWAY_ID")
+            node += os.getenv("POKT_POLYGON")
+        if network == "rinkeby":
+            node += os.getenv("POKT_RINKEBY")
         self.explorer = self.cfg.networks[network].explorer
         self.chain_id = self.cfg.networks[network].chain_id
 
@@ -215,10 +223,10 @@ class TellorSigner:
         if network == "rinkeby" or network == "mumbai" or network == "rinkeby-arbitrum":
             self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         self.mesosphere = self.w3.eth.contract(
-            Web3.toChecksumAddress(self.cfg.address), abi=abi
+            Web3.toChecksumAddress(self.cfg.address[network]), abi=abi
         )
         self.acc = self.w3.eth.default_account = self.w3.eth.account.from_key(
-            os.getenv("PRIVATEKEY")
+            private_key if private_key else os.getenv("PRIVATE_KEYS")
         )
 
         self.bot = None
@@ -298,6 +306,12 @@ class TellorSigner:
                 for i, asset in enumerate(self.assets):
                     current_asset = asset
                     print("nonce:", nonce)
+
+                    # if signer balance is less than half an ether, send alert
+                    if self.w3.eth.get_balance(self.acc.address) < 5e14:
+                        msg = f"warning: signer balance now below .5 ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                        signer_log.warning(msg)
+                        prev_alert = self.bot_alert(msg, prev_alert, asset)
 
                     extra_gp = (
                         0.0  # added to gas price to speed up tx if gas price too low
@@ -415,10 +429,10 @@ class TellorSigner:
 
                     print("sleeping...")
                     # wait because contract only writes new values every 60 seconds
-                    time.sleep(20)
 
-                    if self.w3.eth.get_balance(self.acc.address) < 0.005 * 1e18:
-                        msg = f"urgent: signer ran out out of ETH\nCheck {self.explorer}/address/{self.acc.address}"
+                    curr_balance = self.w3.eth.get_balance(self.acc.address)
+                    if curr_balance < 0.005 * 1e18:
+                        msg = f"urgent: refill balance now (currently: {curr_balance}) \nCheck {self.explorer}/address/{self.acc.address}"
                         signer_log.warning(msg)
                         prev_alert = self.bot_alert(msg, prev_alert, asset)
                         time.sleep(60 * 15)
@@ -428,7 +442,6 @@ class TellorSigner:
                 msg = str(e) + "\n" + tb
                 signer_log.error(msg)
                 prev_alert = self.bot_alert(msg, prev_alert, current_asset)
-                continue
 
 
 if __name__ == "__main__":
