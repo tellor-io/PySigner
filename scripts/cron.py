@@ -1,7 +1,6 @@
 import multiprocessing
 import os
 import sys
-import threading
 import traceback
 
 from pysigner.mesosphere_signer import get_configs

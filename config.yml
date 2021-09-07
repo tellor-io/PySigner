@@ -114,10 +114,18 @@ apis:
         - c
         - 0
 
+  INTUSD:
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=internet-node-token&vs_currencies=usd
+      keywords:
+        - internet-node-token
+        - usd
+
 # tellor contract
 address:
   polygon: "0xACC2d27400029904919ea54fFc0b18Bf07C57875"
   rinkeby: "0xAE50BA0d54610898e078EE0D39dB0a7654968551"
+  int_testnet: "0xa54fa7af8d6ca54d321c8bf7c9d4a213d401fd83"
 
 # settings for interacting with different chains using w3 library
 networks:
@@ -135,3 +143,11 @@ networks:
     node: https://poly-mainnet.gateway.pokt.network/v1/lb/
     explorer: https://polygonscan.com
     chain_id: 137
+
+  int_testnet:
+    node: https://testnet.titansrpc.intchain.io/
+    explorer: https://test.titansexplorer.intchain.io/
+    chain_id: 2048
+
+  int_mainnet:
+    node: https://titansrpc.intchain.io/
