@@ -2,6 +2,7 @@ import argparse
 import csv
 import logging
 import os
+import random
 import sys
 import time
 import traceback
@@ -129,6 +130,11 @@ class Asset:
             \ttimestamp: {self.timestamp}
             """
 
+    def __eq__(self, other):
+        if self.name == other.name and self.request_id == other.request_id:
+            return True
+        return False
+
 
 def get_price(api_info: Dict) -> float:
     """
@@ -194,14 +200,6 @@ class TellorSigner:
         signer_log.info("starting TellorSigner")
         self.cfg = cfg
 
-        self.assets = [
-            # Asset("BTCUSD", 2),
-            Asset("WBTCUSD", 60),
-            # Asset("ETHUSD", 1),
-            # Asset("DAIUSD", 39),
-            Asset("ETHDAI", 1),
-        ]
-
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
@@ -209,6 +207,15 @@ class TellorSigner:
             abi = f.read()
 
         network = self.cfg.network
+        feeds = self.cfg.feeds
+
+        # Only submit assets tipped on this network
+        self.assets = [
+            Asset(a, feeds[a].requestId)
+            for a in cfg.feeds.keys()
+            if feeds[a].networks != "none" and cfg.network in feeds[a].networks
+        ]
+
         node = self.cfg.networks[network].node
         if network == "polygon":
             node += os.getenv("POKT_POLYGON")
@@ -256,6 +263,8 @@ class TellorSigner:
                 price = medianize_eth_dai(
                     self.cfg.apis.ETHUSD, self.cfg.apis.DAIUSD, self.cfg.precision
                 )
+            if asset.name == "random_int":
+                price = random.SystemRandom.randint(0, 1e6)
             else:
                 price = medianize_prices(self.cfg.apis[asset.name], self.cfg.precision)
             asset.price = price

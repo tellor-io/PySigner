@@ -90,6 +90,15 @@ def test_create_signer_instance():
         assert signer.acc.address != None
         assert signer.acc.address != ""
 
+        print(signer.assets)
+        if network == "polygon":
+            assert Asset("WBTCUSD", 60) in signer.assets
+            assert Asset("ETHDAI", 1) in signer.assets
+
+        elif network == "int_testnet":
+            assert Asset("INTUSD", 2) in signer.assets
+            assert Asset("random_int", 4) in signer.assets
+
     create_signer_on_network("polygon", "0xACC2d27400029904919ea54fFc0b18Bf07C57875")
     create_signer_on_network("rinkeby", "0xAE50BA0d54610898e078EE0D39dB0a7654968551")
 
