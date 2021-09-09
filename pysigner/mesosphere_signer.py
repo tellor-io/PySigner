@@ -129,6 +129,11 @@ class Asset:
             \ttimestamp: {self.timestamp}
             """
 
+    def __eq__(self, other):
+        if self.name == other.name and self.request_id == other.request_id:
+            return True
+        return False
+
 
 def get_price(api_info: Dict) -> float:
     """
@@ -194,10 +199,6 @@ class TellorSigner:
         signer_log.info("starting TellorSigner")
         self.cfg = cfg
 
-        self.assets = [
-            asset for asset in cfg.feeds.keys() if cfg.network in asset.networks
-        ]
-
         load_dotenv(find_dotenv())
         self.secret_test = os.getenv("TEST_VAR")
 
@@ -205,6 +206,15 @@ class TellorSigner:
             abi = f.read()
 
         network = self.cfg.network
+        feeds = self.cfg.feeds
+
+        # Only submit assets tipped on this network
+        self.assets = [
+            Asset(a, feeds[a].requestId)
+            for a in cfg.feeds.keys()
+            if feeds[a].networks != "none" and cfg.network in feeds[a].networks
+        ]
+
         node = self.cfg.networks[network].node
         if network == "polygon":
             node += os.getenv("POKT_POLYGON")
