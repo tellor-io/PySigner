@@ -23,7 +23,7 @@ feeds:
     requestId: 3
     networks:
       - none
-  random_number:
+  random_int:
     requestId: 4
     networks:
       - int_testnet
