@@ -21,6 +21,8 @@ feeds:
       - rinkeby
   BTCUSD:
     requestId: 3
+    networks:
+      - none
   random_number:
     requestId: 4
     networks:
@@ -29,7 +31,7 @@ feeds:
   WBTCUSD:
     requestId: 60
     networks:
-      - int_testnet
+      - polygon
       - rinkeby
 
 # price data apis from centralized exchanges
