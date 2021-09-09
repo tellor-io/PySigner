@@ -195,11 +195,7 @@ class TellorSigner:
         self.cfg = cfg
 
         self.assets = [
-            # Asset("BTCUSD", 2),
-            Asset("WBTCUSD", 60),
-            # Asset("ETHUSD", 1),
-            # Asset("DAIUSD", 39),
-            Asset("ETHDAI", 1),
+            asset for asset in cfg.feeds.keys() if cfg.network in asset.networks
         ]
 
         load_dotenv(find_dotenv())
