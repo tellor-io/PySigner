@@ -264,7 +264,7 @@ class TellorSigner:
                     self.cfg.apis.ETHUSD, self.cfg.apis.DAIUSD, self.cfg.precision
                 )
             if asset.name == "random_int":
-                price = random.SystemRandom.randint(0, 1e6)
+                price = random.SystemRandom().randint(a=0, b=1e6)
             else:
                 price = medianize_prices(self.cfg.apis[asset.name], self.cfg.precision)
             asset.price = price
@@ -436,6 +436,7 @@ class TellorSigner:
                     self.assets[i].last_pushed_price = asset.price
                     self.assets[i].time_last_pushed = asset.timestamp
 
+                    time.sleep(15)
                     print("sleeping...")
                     # wait because contract only writes new values every 60 seconds
 
