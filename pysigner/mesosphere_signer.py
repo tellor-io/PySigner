@@ -263,7 +263,7 @@ class TellorSigner:
                 price = medianize_eth_dai(
                     self.cfg.apis.ETHUSD, self.cfg.apis.DAIUSD, self.cfg.precision
                 )
-            if asset.name == "random_int":
+            elif asset.name == "random_int":
                 price = random.SystemRandom().randint(a=0, b=1e6)
             else:
                 price = medianize_prices(self.cfg.apis[asset.name], self.cfg.precision)
