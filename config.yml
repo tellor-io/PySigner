@@ -33,6 +33,16 @@ feeds:
     networks:
       - polygon
       - rinkeby
+  MKRUSD:
+    requestId: 5
+    networks:
+      - polygon
+      - rinkeby
+  MATICUSD:
+    requestId: 6
+    networks:
+      - poylgon
+      - rinkeby
 
 # price data apis from centralized exchanges
 # a url to get price data and a list of keywords used to parse the received json
@@ -63,7 +73,6 @@ apis:
         - TBTCUSD
         - c
         - 0
-
   WBTCUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/WBTC-USD/ticker
@@ -86,7 +95,6 @@ apis:
         - WBTCUSD
         - c
         - 0
-
   ETHUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/ETH-USD/ticker
@@ -113,7 +121,6 @@ apis:
         - ETHUSDC
         - c
         - 0
-
   DAIUSD:
     coinbase:
       url: https://api.pro.coinbase.com/products/DAI-USD/ticker
@@ -140,7 +147,58 @@ apis:
         - DAIUSD
         - c
         - 0
-
+  MKRUSD:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/MKR-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=maker&vs_currencies=usd
+      keywords:
+        - maker
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USDT-MKR
+      keywords:
+        - result
+        - Last
+    gemini:
+      url: https://api.gemini.com/v1/pubticker/mkrusd
+      keywords:
+        - last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=MKRUSD
+      keywords:
+        - result
+        - MKRUSD
+        - c
+        - 0
+  MATICUSD:
+    coinbase:
+      url: https://api.pro.coinbase.com/products/MATIC-USD/ticker
+      keywords:
+        - price
+    coingecko:
+      url: https://api.coingecko.com/api/v3/simple/price?ids=matic-network&vs_currencies=usd
+      keywords:
+        - matic-network
+        - usd
+    bittrex:
+      url: https://api.bittrex.com/api/v1.1/public/getticker?market=USD-MATIC
+      keywords:
+        - result
+        - Last
+    gemini:
+      url: https://api.gemini.com/v1/pubticker/maticusd
+      keywords:
+        - last
+    kraken:
+      url: https://api.kraken.com/0/public/Ticker?pair=MATICUSD
+      keywords:
+        - result
+        - MATICUSD
+        - c
+        - 0
   INTUSD:
     coingecko:
       url: https://api.coingecko.com/api/v3/simple/price?ids=internet-node-token&vs_currencies=usd
