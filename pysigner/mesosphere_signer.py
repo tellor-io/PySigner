@@ -123,12 +123,10 @@ class Asset:
         self.time_last_pushed = 0
 
     def __str__(self):
-        return f"""
-            Asset: {self.name}
-            \trequest_id: {self.request_id}
-            \tprice: {self.price}
-            \ttimestamp: {self.timestamp}
-            """
+        return f"""Asset: {self.name} request_id: {self.request_id} price: {self.price} timestamp: {self.timestamp}"""
+
+    def __repr__(self):
+        return f"""Asset: {self.name} request_id: {self.request_id} price: {self.price} timestamp: {self.timestamp}"""
 
     def __eq__(self, other):
         if self.name == other.name and self.request_id == other.request_id:
@@ -212,8 +210,8 @@ class TellorSigner:
         # Only submit assets tipped on this network
         self.assets = [
             Asset(a, feeds[a].requestId)
-            for a in cfg.feeds.keys()
-            if feeds[a].networks != "none" and cfg.network in feeds[a].networks
+            for a in feeds.keys()
+            if feeds[a].networks != "none" and network in feeds[a].networks
         ]
 
         node = self.cfg.networks[network].node

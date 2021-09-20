@@ -10,9 +10,9 @@ from pysigner.mesosphere_signer import TellorSigner
 
 
 def test_asset():
-    ass = Asset("TRB", 1)
-    assert ass.name == "TRB"
-    assert ass.request_id == 1
+    a = Asset("TRB", 1)
+    assert a.name == "TRB"
+    assert a.request_id == 1
 
 
 def test_read_config_file():
@@ -94,6 +94,8 @@ def test_create_signer_instance():
         if network == "polygon":
             assert Asset("WBTCUSD", 60) in signer.assets
             assert Asset("ETHDAI", 1) in signer.assets
+            assert Asset("MKRUSD", 5) in signer.assets
+            assert Asset("MATICUSD", 6) in signer.assets
 
         elif network == "int_testnet":
             assert Asset("INTUSD", 2) in signer.assets
