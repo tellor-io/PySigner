@@ -16,6 +16,7 @@ pyyaml = "*"
 python-box = "*"
 schedule = "*"
 python-crontab = "*"
+pytest = "*"
 
 [dev-packages]
 pytest = "*"

@@ -28,11 +28,6 @@ feeds:
     networks:
       - int_testnet
       - rinkeby
-  WBTCUSD:
-    requestId: 60
-    networks:
-      - polygon
-      - rinkeby
   MKRUSD:
     requestId: 5
     networks:
@@ -41,7 +36,12 @@ feeds:
   MATICUSD:
     requestId: 6
     networks:
-      - poylgon
+      - polygon
+      - rinkeby
+  WBTCUSD:
+    requestId: 60
+    networks:
+      - polygon
       - rinkeby
 
 # price data apis from centralized exchanges
