@@ -434,7 +434,7 @@ class TellorSigner:
                     self.assets[i].last_pushed_price = asset.price
                     self.assets[i].time_last_pushed = asset.timestamp
 
-                    time.sleep(15)
+                    time.sleep(3600)
                     print("sleeping...")
                     # wait because contract only writes new values every 60 seconds
 
